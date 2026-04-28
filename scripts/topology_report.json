@@ -1,0 +1,766 @@
+{
+  "meshes": [
+    {
+      "name": "hair",
+      "vertices": 5185,
+      "edges": 13014,
+      "faces": 7880,
+      "face_types": {
+        "triangles": 7880,
+        "quads": 0,
+        "ngons": 0
+      },
+      "quad_ratio": 0.0,
+      "tri_ratio": 100.0,
+      "poles": {
+        "e_poles_3edges": 1053,
+        "regular_4edges": 1490,
+        "n_poles_5edges": 1022,
+        "star_6plus": 1555
+      },
+      "pole_regularity": 28.7,
+      "topology_issues": {
+        "boundary_edges": 2392,
+        "non_manifold_edges": 4,
+        "loose_vertices": 0,
+        "is_watertight": false
+      },
+      "uv_layers": 1,
+      "uv_layer_names": [
+        "UVMap"
+      ],
+      "shape_keys": {
+        "count": 0,
+        "names": []
+      },
+      "vertex_groups": {
+        "count": 23,
+        "names": [
+          "hair_C.001",
+          "hair_D",
+          "hair_D.001",
+          "hair_E",
+          "hair_E.001",
+          "hair_F",
+          "hair_F.001",
+          "hair_G",
+          "hair_G.001",
+          "hair_subA",
+          "hair_subA.001",
+          "hair_subB",
+          "hair_subB.001",
+          "hair_subC",
+          "hair_subC.001",
+          "hair_subD",
+          "hair_subD.001",
+          "head 1",
+          "hair_A",
+          "hair_A.001",
+          "hair_B",
+          "hair_B.001",
+          "hair_C"
+        ]
+      },
+      "bounds": {
+        "x": [
+          -0.114,
+          0.1129
+        ],
+        "y": [
+          -0.1197,
+          0.1359
+        ],
+        "z": [
+          1.3235,
+          1.58
+        ]
+      },
+      "edge_length": {
+        "min": 0.000564,
+        "max": 0.066343,
+        "avg": 0.016162,
+        "ratio_max_min": 117.6
+      },
+      "face_area": {
+        "min": 5.3e-07,
+        "max": 0.00103988,
+        "avg": 8.364e-05
+      },
+      "symmetry": {
+        "x_symmetric_verts": 590,
+        "symmetry_ratio": 11.4
+      }
+    },
+    {
+      "name": "hair_tail",
+      "vertices": 156,
+      "edges": 392,
+      "faces": 238,
+      "face_types": {
+        "triangles": 238,
+        "quads": 0,
+        "ngons": 0
+      },
+      "quad_ratio": 0.0,
+      "tri_ratio": 100.0,
+      "poles": {
+        "e_poles_3edges": 27,
+        "regular_4edges": 48,
+        "n_poles_5edges": 33,
+        "star_6plus": 45
+      },
+      "pole_regularity": 30.8,
+      "topology_issues": {
+        "boundary_edges": 70,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "is_watertight": false
+      },
+      "uv_layers": 1,
+      "uv_layer_names": [
+        "UVMap"
+      ],
+      "shape_keys": {
+        "count": 0,
+        "names": []
+      },
+      "vertex_groups": {
+        "count": 7,
+        "names": [
+          "hair_tail_1",
+          "hair_tail_2",
+          "hair_tail_3",
+          "hair_tail_4",
+          "hair_tail_5",
+          "hair_tail_6",
+          "head 1"
+        ]
+      },
+      "bounds": {
+        "x": [
+          -0.1946,
+          0.0086
+        ],
+        "y": [
+          0.0622,
+          0.2727
+        ],
+        "z": [
+          1.0385,
+          1.3395
+        ]
+      },
+      "edge_length": {
+        "min": 0.002425,
+        "max": 0.060895,
+        "avg": 0.022856,
+        "ratio_max_min": 25.1
+      },
+      "face_area": {
+        "min": 6.73e-06,
+        "max": 0.00038059,
+        "avg": 0.00012332
+      },
+      "symmetry": {
+        "x_symmetric_verts": 3,
+        "symmetry_ratio": 1.9
+      }
+    },
+    {
+      "name": "head",
+      "vertices": 6142,
+      "edges": 16648,
+      "faces": 10550,
+      "face_types": {
+        "triangles": 10550,
+        "quads": 0,
+        "ngons": 0
+      },
+      "quad_ratio": 0.0,
+      "tri_ratio": 100.0,
+      "poles": {
+        "e_poles_3edges": 472,
+        "regular_4edges": 1199,
+        "n_poles_5edges": 1585,
+        "star_6plus": 2821
+      },
+      "pole_regularity": 19.5,
+      "topology_issues": {
+        "boundary_edges": 1646,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "is_watertight": false
+      },
+      "uv_layers": 1,
+      "uv_layer_names": [
+        "UVMap"
+      ],
+      "shape_keys": {
+        "count": 44,
+        "names": [
+          "Basis",
+          "eye_close",
+          "blink_L",
+          "blink_R",
+          "eye_open",
+          "eye_smile",
+          "eye_brow_up",
+          "eye_brow_up_L",
+          "eye_brow_up_R",
+          "eye_brow_down",
+          "eye_brow_down_L",
+          "eye_brow_down_R",
+          "eye_small",
+          "eye_no_hilight",
+          "eye_black_big",
+          "eye_black_small",
+          "eye_star",
+          "eye_V",
+          "eye_zitome",
+          "shock_plane",
+          "eye_angry",
+          "cheek",
+          "cheek_pop",
+          "mouse_open",
+          "mouth_wide",
+          "mouth_short",
+          "lip_a",
+          "lip_i",
+          "lip_u",
+          "lip_e",
+          "lip_o",
+          "lip_w",
+          "lip_up",
+          "lip_down",
+          "face_happy",
+          "face_angry",
+          "face_sad",
+          "face_relax",
+          "face_relax2",
+          "face_surprise",
+          "look_up",
+          "look_down",
+          "look_left",
+          "look_right"
+        ]
+      },
+      "vertex_groups": {
+        "count": 1,
+        "names": [
+          "head 1"
+        ]
+      },
+      "bounds": {
+        "x": [
+          -0.1095,
+          0.1095
+        ],
+        "y": [
+          -0.1227,
+          0.1042
+        ],
+        "z": [
+          1.2979,
+          1.5591
+        ]
+      },
+      "edge_length": {
+        "min": 1e-06,
+        "max": 0.042827,
+        "avg": 0.005849,
+        "ratio_max_min": 42342.1
+      },
+      "face_area": {
+        "min": 0.0,
+        "max": 0.00030463,
+        "avg": 1.921e-05
+      },
+      "symmetry": {
+        "x_symmetric_verts": 6009,
+        "symmetry_ratio": 97.8
+      },
+      "face_regions": {
+        "eye_region": {
+          "vertex_count": 579,
+          "density_percent": 9.43
+        },
+        "nose_region": {
+          "vertex_count": 1187,
+          "density_percent": 19.33
+        },
+        "jaw_region": {
+          "vertex_count": 1454,
+          "density_percent": 23.67
+        },
+        "cheek_region": {
+          "vertex_count": 1476,
+          "density_percent": 24.03
+        },
+        "forehead_region": {
+          "vertex_count": 658,
+          "density_percent": 10.71
+        },
+        "mouth_region": {
+          "vertex_count": 421,
+          "density_percent": 6.85
+        }
+      },
+      "edge_loops_hint": {
+        "eye_region_edges": 2004,
+        "mouth_region_edges": 4342
+      }
+    },
+    {
+      "name": "robo_arm",
+      "vertices": 3795,
+      "edges": 6228,
+      "faces": 3016,
+      "face_types": {
+        "triangles": 3016,
+        "quads": 0,
+        "ngons": 0
+      },
+      "quad_ratio": 0.0,
+      "tri_ratio": 100.0,
+      "poles": {
+        "e_poles_3edges": 1260,
+        "regular_4edges": 919,
+        "n_poles_5edges": 161,
+        "star_6plus": 306
+      },
+      "pole_regularity": 24.2,
+      "topology_issues": {
+        "boundary_edges": 3408,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "is_watertight": false
+      },
+      "uv_layers": 1,
+      "uv_layer_names": [
+        "UVMap"
+      ],
+      "shape_keys": {
+        "count": 0,
+        "names": []
+      },
+      "vertex_groups": {
+        "count": 21,
+        "names": [
+          "robo_f_ring.02.L",
+          "robo_f_ring.03.L",
+          "robo_f_pinky.01.L",
+          "robo_f_pinky.02.L",
+          "robo_f_pinky.03.L",
+          "bagpack",
+          "robo_root_pole",
+          "robo_shoulder.L",
+          "robo_upper_arm.L",
+          "robo_forearm.L",
+          "robo_hand.L",
+          "robo_f_index.01.L",
+          "robo_f_index.02.L",
+          "robo_f_index.03.L",
+          "robo_thumb.01.L",
+          "robo_thumb.02.L",
+          "robo_thumb.03.L",
+          "robo_f_middle.01.L",
+          "robo_f_middle.02.L",
+          "robo_f_middle.03.L",
+          "robo_f_ring.01.L"
+        ]
+      },
+      "bounds": {
+        "x": [
+          -0.0599,
+          1.57
+        ],
+        "y": [
+          0.1749,
+          0.4499
+        ],
+        "z": [
+          1.1342,
+          1.5414
+        ]
+      },
+      "edge_length": {
+        "min": 0.001019,
+        "max": 0.187198,
+        "avg": 0.029424,
+        "ratio_max_min": 183.8
+      },
+      "face_area": {
+        "min": 2.91e-06,
+        "max": 0.00713254,
+        "avg": 0.00034217
+      },
+      "symmetry": {
+        "x_symmetric_verts": 35,
+        "symmetry_ratio": 0.9
+      }
+    },
+    {
+      "name": "wear",
+      "vertices": 18781,
+      "edges": 41470,
+      "faces": 23374,
+      "face_types": {
+        "triangles": 23374,
+        "quads": 0,
+        "ngons": 0
+      },
+      "quad_ratio": 0.0,
+      "tri_ratio": 100.0,
+      "poles": {
+        "e_poles_3edges": 2379,
+        "regular_4edges": 8236,
+        "n_poles_5edges": 1617,
+        "star_6plus": 5109
+      },
+      "pole_regularity": 43.9,
+      "topology_issues": {
+        "boundary_edges": 12818,
+        "non_manifold_edges": 0,
+        "loose_vertices": 0,
+        "is_watertight": false
+      },
+      "uv_layers": 1,
+      "uv_layer_names": [
+        "UVMap"
+      ],
+      "shape_keys": {
+        "count": 0,
+        "names": []
+      },
+      "vertex_groups": {
+        "count": 80,
+        "names": [
+          "hips",
+          "spine",
+          "robo_wire",
+          "robo_wire.001",
+          "robo_wire.002",
+          "robo_wire.003",
+          "robo_wire.004",
+          "robo_wire.005",
+          "bag_rope_L",
+          "bag_rope_L.001",
+          "bag_rope_L.002",
+          "bag_rope_R",
+          "bag_rope_R.001",
+          "bag_rope_R.002",
+          "thigh.L",
+          "shin.L",
+          "foot.L",
+          "toe.L",
+          "heel.L",
+          "foot_rope_L",
+          "foot_rope_L.001",
+          "thigh.R",
+          "shin.R",
+          "foot.R",
+          "toe.R",
+          "heel.R",
+          "foot_rope_R",
+          "foot_rope_R.001",
+          "chest",
+          "neck",
+          "shoulder.L",
+          "upper_arm.L",
+          "forearm.L",
+          "forearm.twist.L",
+          "hand.L",
+          "palm.01.L",
+          "f_index.01.L",
+          "head 1",
+          "f_index.02.L",
+          "f_index.03.L",
+          "thumb.01.L",
+          "thumb.02.L",
+          "thumb.03.L",
+          "palm.02.L",
+          "f_middle.01.L",
+          "f_middle.02.L",
+          "f_middle.03.L",
+          "palm.03.L",
+          "f_ring.01.L",
+          "f_ring.02.L",
+          "f_ring.03.L",
+          "palm.04.L",
+          "f_pinky.01.L",
+          "f_pinky.02.L",
+          "f_pinky.03.L",
+          "shoulder.R",
+          "upper_arm.R",
+          "forearm.R",
+          "forearm.twist.R",
+          "hand.R",
+          "palm.01.R",
+          "f_index.01.R",
+          "f_index.02.R",
+          "f_index.03.R",
+          "thumb.01.R",
+          "thumb.02.R",
+          "thumb.03.R",
+          "palm.02.R",
+          "f_middle.01.R",
+          "f_middle.02.R",
+          "f_middle.03.R",
+          "palm.03.R",
+          "f_ring.01.R",
+          "f_ring.02.R",
+          "f_ring.03.R",
+          "palm.04.R",
+          "f_pinky.01.R",
+          "f_pinky.02.R",
+          "f_pinky.03.R",
+          "bagpack"
+        ]
+      },
+      "bounds": {
+        "x": [
+          -0.7805,
+          0.7805
+        ],
+        "y": [
+          -0.1926,
+          0.4833
+        ],
+        "z": [
+          -0.0002,
+          1.3429
+        ]
+      },
+      "edge_length": {
+        "min": 0.000542,
+        "max": 0.256619,
+        "avg": 0.018114,
+        "ratio_max_min": 473.8
+      },
+      "face_area": {
+        "min": 6.1e-07,
+        "max": 0.01349729,
+        "avg": 0.00016528
+      },
+      "symmetry": {
+        "x_symmetric_verts": 15401,
+        "symmetry_ratio": 82.0
+      }
+    }
+  ],
+  "armatures": [
+    {
+      "name": "Armature",
+      "bone_count": 141,
+      "bone_names": [
+        "hips",
+        "spine",
+        "chest",
+        "bag_rope_L",
+        "bag_rope_L.001",
+        "bag_rope_L.002",
+        "bag_rope_R",
+        "bag_rope_R.001",
+        "bag_rope_R.002",
+        "bagpack",
+        "robo_root_pole",
+        "robo_shoulder.L",
+        "robo_upper_arm.L",
+        "robo_forearm.L",
+        "robo_hand.L",
+        "robo_palm.01.L",
+        "robo_f_index.01.L",
+        "robo_f_index.02.L",
+        "robo_f_index.03.L",
+        "robo_thumb.01.L",
+        "robo_thumb.02.L",
+        "robo_thumb.03.L",
+        "robo_palm.02.L",
+        "robo_f_middle.01.L",
+        "robo_f_middle.02.L",
+        "robo_f_middle.03.L",
+        "robo_palm.03.L",
+        "robo_f_ring.01.L",
+        "robo_f_ring.02.L",
+        "robo_f_ring.03.L",
+        "robo_palm.04.L",
+        "robo_f_pinky.01.L",
+        "robo_f_pinky.02.L",
+        "robo_f_pinky.03.L",
+        "robo_wire",
+        "robo_wire.001",
+        "robo_wire.002",
+        "robo_wire.003",
+        "robo_wire.004",
+        "robo_wire.005",
+        "robo_wire_end",
+        "neck",
+        "head 1",
+        "hair_A",
+        "hair_A.001",
+        "hair_A_end",
+        "hair_B",
+        "hair_B.001",
+        "hair_B_end",
+        "hair_C",
+        "hair_C.001",
+        "hair_C_end",
+        "hair_D",
+        "hair_D.001",
+        "hair_D_end",
+        "hair_E",
+        "hair_E.001",
+        "hair_E_end",
+        "hair_F",
+        "hair_F.001",
+        "hair_F_end",
+        "hair_G",
+        "hair_G.001",
+        "hair_G_end",
+        "hair_subA",
+        "hair_subA.001",
+        "hair_subB",
+        "hair_subB.001",
+        "hair_subC",
+        "hair_subC.001",
+        "hair_subD",
+        "hair_subD.001",
+        "hair_tail_1",
+        "hair_tail_2",
+        "hair_tail_3",
+        "hair_tail_4",
+        "hair_tail_5",
+        "hair_tail_6",
+        "hair_tail_end",
+        "shoulder.L",
+        "upper_arm.L",
+        "forearm.L",
+        "forearm.twist.L",
+        "hand.L",
+        "palm.01.L",
+        "f_index.01.L",
+        "f_index.02.L",
+        "f_index.03.L",
+        "thumb.01.L",
+        "thumb.02.L",
+        "thumb.03.L",
+        "palm.02.L",
+        "f_middle.01.L",
+        "f_middle.02.L",
+        "f_middle.03.L",
+        "palm.03.L",
+        "f_ring.01.L",
+        "f_ring.02.L",
+        "f_ring.03.L",
+        "palm.04.L",
+        "f_pinky.01.L",
+        "f_pinky.02.L",
+        "f_pinky.03.L",
+        "shoulder.R",
+        "upper_arm.R",
+        "forearm.R",
+        "forearm.twist.R",
+        "hand.R",
+        "palm.01.R",
+        "f_index.01.R",
+        "f_index.02.R",
+        "f_index.03.R",
+        "thumb.01.R",
+        "thumb.02.R",
+        "thumb.03.R",
+        "palm.02.R",
+        "f_middle.01.R",
+        "f_middle.02.R",
+        "f_middle.03.R",
+        "palm.03.R",
+        "f_ring.01.R",
+        "f_ring.02.R",
+        "f_ring.03.R",
+        "palm.04.R",
+        "f_pinky.01.R",
+        "f_pinky.02.R",
+        "f_pinky.03.R",
+        "thigh.L",
+        "shin.L",
+        "foot.L",
+        "heel.L",
+        "toe.L",
+        "foot_rope_L",
+        "foot_rope_L.001",
+        "thigh.R",
+        "shin.R",
+        "foot.R",
+        "heel.R",
+        "toe.R",
+        "foot_rope_R",
+        "foot_rope_R.001"
+      ]
+    }
+  ],
+  "other_objects": [
+    {
+      "name": "chest Collider",
+      "type": "EMPTY"
+    },
+    {
+      "name": "chest Collider.001",
+      "type": "EMPTY"
+    },
+    {
+      "name": "chest Collider.001 End",
+      "type": "EMPTY"
+    },
+    {
+      "name": "chest Collider.002",
+      "type": "EMPTY"
+    },
+    {
+      "name": "chest Collider.002 End",
+      "type": "EMPTY"
+    },
+    {
+      "name": "ColliderGroups",
+      "type": "EMPTY"
+    },
+    {
+      "name": "shin.L Collider",
+      "type": "EMPTY"
+    },
+    {
+      "name": "shin.L Collider End",
+      "type": "EMPTY"
+    },
+    {
+      "name": "shin.R Collider",
+      "type": "EMPTY"
+    },
+    {
+      "name": "shin.R Collider End",
+      "type": "EMPTY"
+    },
+    {
+      "name": "spine Collider",
+      "type": "EMPTY"
+    },
+    {
+      "name": "spine Collider End",
+      "type": "EMPTY"
+    },
+    {
+      "name": "thigh.L Collider",
+      "type": "EMPTY"
+    },
+    {
+      "name": "thigh.L Collider End",
+      "type": "EMPTY"
+    },
+    {
+      "name": "thigh.R Collider",
+      "type": "EMPTY"
+    },
+    {
+      "name": "thigh.R Collider End",
+      "type": "EMPTY"
+    }
+  ]
+}
