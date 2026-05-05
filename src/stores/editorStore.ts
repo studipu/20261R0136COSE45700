@@ -7,6 +7,9 @@ interface HistoryEntry {
   morphTargets: EditorState['morphTargets'];
   boneScales: EditorState['boneScales'];
   materials: EditorState['materials'];
+  hairFrontUrl: EditorState['hairFrontUrl'];
+  hairBackUrl: EditorState['hairBackUrl'];
+  hairColor: EditorState['hairColor'];
 }
 
 const MAX_HISTORY = 50;
@@ -22,6 +25,9 @@ function snapshot(state: EditorState): HistoryEntry {
     materials: Object.fromEntries(
       Object.entries(state.materials).map(([k, v]) => [k, { ...v }])
     ),
+    hairFrontUrl: state.hairFrontUrl,
+    hairBackUrl: state.hairBackUrl,
+    hairColor: state.hairColor,
   };
 }
 
@@ -65,6 +71,9 @@ const initialState: EditorState = {
   morphTargets: {},
   boneScales: {},
   materials: {},
+  hairFrontUrl: null,
+  hairBackUrl: null,
+  hairColor: null,
   versions: [],
   isLoading: false,
   error: null,
@@ -181,6 +190,22 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     saveVersionsToStorage(state.avatarId, versions);
   },
 
+  // --- Hair ---
+  setHairFront: (url) => {
+    pushUndo(get());
+    set({ hairFrontUrl: url });
+  },
+
+  setHairBack: (url) => {
+    pushUndo(get());
+    set({ hairBackUrl: url });
+  },
+
+  setHairColor: (color) => {
+    pushUndo(get());
+    set({ hairColor: color });
+  },
+
   // --- Undo / Redo ---
   undo: () => {
     if (undoStack.length === 0) return;
@@ -191,6 +216,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       morphTargets: prev.morphTargets,
       boneScales: prev.boneScales,
       materials: prev.materials,
+      hairFrontUrl: prev.hairFrontUrl,
+      hairBackUrl: prev.hairBackUrl,
+      hairColor: prev.hairColor,
     });
   },
 
@@ -203,6 +231,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       morphTargets: next.morphTargets,
       boneScales: next.boneScales,
       materials: next.materials,
+      hairFrontUrl: next.hairFrontUrl,
+      hairBackUrl: next.hairBackUrl,
+      hairColor: next.hairColor,
     });
   },
 
@@ -216,6 +247,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       morphTargets: {},
       boneScales: {},
       materials: {},
+      hairFrontUrl: null,
+      hairBackUrl: null,
+      hairColor: null,
     });
   },
 

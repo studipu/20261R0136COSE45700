@@ -50,6 +50,11 @@ export interface EditorState {
   boneScales: BoneScaleMap;
   materials: MaterialMap;
 
+  // Hair attachments
+  hairFrontUrl: string | null;
+  hairBackUrl: string | null;
+  hairColor: string | null;
+
   // Version management
   versions: AvatarVersion[];
 
@@ -82,6 +87,11 @@ export interface EditorActions {
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+
+  // Hair
+  setHairFront: (url: string | null) => void;
+  setHairBack: (url: string | null) => void;
+  setHairColor: (color: string | null) => void;
 
   // Reset all
   resetAll: () => void;

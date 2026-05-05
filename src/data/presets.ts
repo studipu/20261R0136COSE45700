@@ -1,30 +1,51 @@
 import type { PresetItem, QuickPreset } from '@/types/preset';
 
 export const PRESET_ITEMS: PresetItem[] = [
-  // 플레이스홀더 - 에셋 도착 시 교체
   {
-    id: 'hair-default',
-    name: '기본 헤어',
+    id: 'hair-none',
+    name: '없음',
     category: 'hair',
     thumbnailUrl: '',
   },
   {
-    id: 'hair-short',
-    name: '숏컷',
+    id: 'hair-01',
+    name: '헤어 1',
     category: 'hair',
     thumbnailUrl: '',
+    meshUrl: '/models/hair-library/N00_000_Hair_01_HAIR.glb',
+    hairBackUrl: '/models/hair-library/N00_000_00_HairBack_01_HAIR.glb',
   },
   {
-    id: 'hair-long',
-    name: '롱헤어',
+    id: 'hair-02',
+    name: '헤어 2',
     category: 'hair',
     thumbnailUrl: '',
+    meshUrl: '/models/hair-library/N00_000_Hair_02_HAIR.glb',
+    hairBackUrl: '/models/hair-library/N00_000_00_HairBack_02_HAIR.glb',
   },
   {
-    id: 'hair-ponytail',
-    name: '포니테일',
+    id: 'hair-03',
+    name: '헤어 3',
     category: 'hair',
     thumbnailUrl: '',
+    meshUrl: '/models/hair-library/N00_000_Hair_03_HAIR.glb',
+    hairBackUrl: '/models/hair-library/N00_000_00_HairBack_03_HAIR.glb',
+  },
+  {
+    id: 'hair-04',
+    name: '헤어 4',
+    category: 'hair',
+    thumbnailUrl: '',
+    meshUrl: '/models/hair-library/N00_000_Hair_04_HAIR.glb',
+    hairBackUrl: '/models/hair-library/N00_000_00_HairBack_04_HAIR.glb',
+  },
+  {
+    id: 'hair-05',
+    name: '헤어 5',
+    category: 'hair',
+    thumbnailUrl: '',
+    meshUrl: '/models/hair-library/N00_000_Hair_05_HAIR.glb',
+    hairBackUrl: '/models/hair-library/N00_000_00_HairBack_05_HAIR.glb',
   },
   {
     id: 'outfit-default',

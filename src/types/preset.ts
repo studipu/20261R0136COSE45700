@@ -8,6 +8,7 @@ export interface PresetItem {
   category: PresetCategory;
   thumbnailUrl: string;
   meshUrl?: string;
+  hairBackUrl?: string;
   blendShapeKey?: string;
 }
 

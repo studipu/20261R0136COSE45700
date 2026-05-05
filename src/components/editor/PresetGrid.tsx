@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { getPresetsByCategory } from '@/data/presets';
+import { getPresetsByCategory, PRESET_ITEMS } from '@/data/presets';
+import { useEditorStore } from '@/stores/editorStore';
 import { CollapsibleSection } from './CollapsibleSection';
 import { Check } from 'lucide-react';
 import type { PresetCategory } from '@/types/preset';
@@ -19,20 +20,22 @@ const CATEGORIES: { id: PresetCategory; label: string }[] = [
 
 export function PresetGrid({ selectedPresets = {}, onSelectPreset }: PresetGridProps) {
   const [selected, setSelected] = useState<Record<string, string>>(selectedPresets);
+  const setHairFront = useEditorStore((s) => s.setHairFront);
+  const setHairBack = useEditorStore((s) => s.setHairBack);
 
   const handleSelect = (category: PresetCategory, presetId: string) => {
     setSelected((prev) => ({ ...prev, [category]: presetId }));
     onSelectPreset?.(category, presetId);
+
+    if (category === 'hair') {
+      const preset = PRESET_ITEMS.find((p) => p.id === presetId);
+      setHairFront(preset?.meshUrl ?? null);
+      setHairBack(preset?.hairBackUrl ?? null);
+    }
   };
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border/50 bg-muted/30 p-3 mb-2">
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          프리셋 에셋 준비 중입니다. 에셋이 도착하면 실제 모델이 적용됩니다.
-        </p>
-      </div>
-
       {CATEGORIES.map(({ id, label }) => {
         const presets = getPresetsByCategory(id);
         if (presets.length === 0) return null;

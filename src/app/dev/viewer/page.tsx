@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { WebGLCheck } from '@/components/viewer/WebGLCheck';
 import { MorphTargetSlider } from '@/components/editor/MorphTargetSlider';
-import { BoneScaleSlider } from '@/components/editor/BoneScaleSlider';
 import { CollapsibleSection } from '@/components/editor/CollapsibleSection';
 import { MaterialEditor } from '@/components/editor/MaterialEditor';
 import { VersionPanel } from '@/components/editor/VersionPanel';
@@ -21,7 +20,6 @@ import type { TemplateMetadata } from '@/types/template';
 import {
   User,
   Smile,
-  SlidersHorizontal,
   Palette,
   Shirt,
   Upload,
@@ -44,17 +42,6 @@ const ThreeJSViewer = dynamic(
 
 const DEFAULT_MODEL_URL = '/models/CustomizableCharacter.vrm';
 
-const BONE_SCALE_PRESETS: { boneName: string; label: string; axes: ('x' | 'y' | 'z')[] }[] = [
-  { boneName: 'head', label: '머리', axes: ['x', 'y', 'z'] },
-  { boneName: 'neck', label: '목', axes: ['x', 'y', 'z'] },
-  { boneName: 'chest', label: '가슴', axes: ['x', 'y', 'z'] },
-  { boneName: 'spine', label: '허리', axes: ['x', 'y', 'z'] },
-  { boneName: 'hips', label: '골반', axes: ['x', 'y', 'z'] },
-  { boneName: 'leftUpperArm', label: '왼팔(상)', axes: ['x', 'y', 'z'] },
-  { boneName: 'rightUpperArm', label: '오른팔(상)', axes: ['x', 'y', 'z'] },
-  { boneName: 'leftUpperLeg', label: '왼다리(상)', axes: ['x', 'y', 'z'] },
-  { boneName: 'rightUpperLeg', label: '오른다리(상)', axes: ['x', 'y', 'z'] },
-];
 
 const MORPH_LABELS: Record<string, string> = {
   face_eye_size: '눈 크기',
@@ -75,24 +62,45 @@ const MORPH_LABELS: Record<string, string> = {
   face_forehead_width: '이마 너비',
   face_eyebrow_height: '눈썹 높이',
   face_eyebrow_thickness: '눈썹 두께',
-  body_shoulder_width: '어깨 너비',
-  body_chest_size: '가슴 크기',
-  body_waist_width: '허리 너비',
-  body_hip_width: '골반 너비',
-  body_arm_thickness: '팔 굵기',
-  body_leg_thickness: '다리 굵기',
+  Eye_Width: '눈 가로 너비',
+  Eye_WidthV: '눈 세로 너비',
+  Eye_Height: '눈 높이',
+  Eye_Dist: '눈 간격',
+  Eye_Rot: '눈매 각도',
+  Eye_FrontHeight: '앞머리쪽 눈 높이',
+  Eye_FrontFlat: '앞머리쪽 눈 평탄도',
+  Eye_TailHeight: '꼬리쪽 눈 높이',
+  Eye_TopLidFlat: '윗눈꺼풀 평탄도',
+  Eye_LowerLidFlat: '아랫눈꺼풀 평탄도',
+  Eye_TopLidDown: '윗눈꺼풀 내림',
+  Eye_LowerLidUp: '아랫눈꺼풀 올림',
+  Eye_PupilWidth: '동공 가로 크기',
+  Eye_PupilWidthV: '동공 세로 크기',
+  Brow_Dist: '눈썹 간격',
+  Brow_Height: '눈썹 높이',
+  Brow_Rot: '눈썹 각도',
+  Brow_Width: '눈썹 가로 너비',
+  Brow_WidthV: '눈썹 세로 너비',
+  Nose_Height: '코 높이',
+  Nose_Width: '코 너비',
+  Nose_UnderNose: '인중 길이',
+  Mouth_Width: '입 너비',
+  Mouth_Height: '입 높이',
+  Mouth_Corner: '입꼬리',
+  Face_JawLine: '턱선',
+  Face_Cheek: '볼 볼륨',
+  Face_Roundness: '얼굴 둥글기',
+  Face_ChinWidth: '턱 너비',
 };
 
-const AXIS_LABELS: Record<string, string> = { x: '가로', y: '세로', z: '깊이' };
 
-type TabId = 'face' | 'body' | 'expressions' | 'material' | 'style' | 'version';
+type TabId = 'face' | 'expressions' | 'material' | 'style' | 'version';
 
 const TAB_CONFIG: { id: TabId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'face', label: '얼굴', icon: User },
-  { id: 'body', label: '체형', icon: SlidersHorizontal },
-  { id: 'expressions', label: '표정', icon: Smile },
-  { id: 'material', label: '재질', icon: Palette },
   { id: 'style', label: '스타일', icon: Shirt },
+  { id: 'material', label: '재질', icon: Palette },
+  { id: 'expressions', label: '표정', icon: Smile },
   { id: 'version', label: '버전', icon: History },
 ];
 
@@ -121,7 +129,6 @@ export default function DevViewerPage() {
   const canRedo = useEditorStore((s) => s.canRedo);
   const saveVersion = useEditorStore((s) => s.saveVersion);
   const morphTargets = useEditorStore((s) => s.morphTargets);
-  const boneScales = useEditorStore((s) => s.boneScales);
   const viewerRef = useRef<ThreeJSViewerHandle>(null);
   const { capture } = useCanvasScreenshot();
 
@@ -234,14 +241,21 @@ export default function DevViewerPage() {
   );
 
   // Filter morphs
-  const faceMorphs = morphTargetNames.filter((n) => n.startsWith('face_'));
-  const bodyMorphs = morphTargetNames.filter((n) => n.startsWith('body_'));
+  const CUSTOM_FACE_MORPHS = new Set([
+    'Eye_Width', 'Eye_WidthV', 'Eye_Height', 'Eye_Dist', 'Eye_Rot',
+    'Eye_FrontHeight', 'Eye_FrontFlat', 'Eye_TailHeight',
+    'Eye_TopLidFlat', 'Eye_LowerLidFlat', 'Eye_TopLidDown', 'Eye_LowerLidUp',
+    'Eye_PupilWidth', 'Eye_PupilWidthV',
+    'Brow_Dist', 'Brow_Height', 'Brow_Rot', 'Brow_Width', 'Brow_WidthV',
+    'Nose_Height', 'Nose_Width', 'Nose_UnderNose',
+    'Mouth_Width', 'Mouth_Height', 'Mouth_Corner',
+    'Face_JawLine', 'Face_Cheek', 'Face_Roundness', 'Face_ChinWidth',
+  ]);
+  const faceMorphs = morphTargetNames.filter((n) => n.startsWith('face_') || CUSTOM_FACE_MORPHS.has(n));
   const expressionSet = new Set(expressionNames);
   const otherMorphs = morphTargetNames.filter(
-    (n) => !n.startsWith('face_') && !n.startsWith('body_') && !expressionSet.has(n)
+    (n) => !n.startsWith('face_') && !n.startsWith('body_') && !CUSTOM_FACE_MORPHS.has(n) && !expressionSet.has(n)
   );
-
-  const availablePresets = BONE_SCALE_PRESETS.filter((p) => availableBones.includes(p.boneName));
 
   // Search & filter
   const filterMorphs = useCallback(
@@ -263,11 +277,9 @@ export default function DevViewerPage() {
   );
 
   const modifiedMorphCount = morphTargetNames.filter((n) => (morphTargets[n] ?? 0) !== 0).length;
-  const modifiedBoneCount = Object.keys(boneScales).length;
 
   const tabCounts: Record<string, number> = {
     face: faceMorphs.length,
-    body: availablePresets.length + bodyMorphs.length,
     expressions: expressionNames.length + otherMorphs.length,
     material: detectedMaterials.length,
     style: 0,
@@ -398,14 +410,14 @@ export default function DevViewerPage() {
             </div>
 
             {/* --- Search & Reset (morph tabs only) --- */}
-            {['face', 'body', 'expressions'].includes(activeTab) && (
+            {['face', 'expressions'].includes(activeTab) && (
               <div className="px-4 py-3 border-b border-border/50 shrink-0 space-y-2">
                 <SliderSearch
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   showModifiedOnly={showModifiedOnly}
                   onToggleModifiedOnly={() => setShowModifiedOnly(!showModifiedOnly)}
-                  modifiedCount={modifiedMorphCount + modifiedBoneCount}
+                  modifiedCount={modifiedMorphCount}
                 />
                 <button
                   onClick={resetAll}
@@ -435,71 +447,69 @@ export default function DevViewerPage() {
               )}
 
               {/* Face Tab */}
-              {activeTab === 'face' && (
-                <>
-                  <QuickPresets />
-                  {filterMorphs(faceMorphs).length > 0 ? (
-                    <CollapsibleSection title="얼굴 형태" count={filterMorphs(faceMorphs).length}>
-                      {filterMorphs(faceMorphs).map((name) => (
-                        <MorphTargetSlider
-                          key={name}
-                          name={name}
-                          label={MORPH_LABELS[name] || name}
-                        />
-                      ))}
-                    </CollapsibleSection>
-                  ) : (
-                    availableBones.length > 0 && !searchQuery && !showModifiedOnly && (
-                      <div className="rounded-xl border border-border/30 bg-accent/20 p-4">
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          이 모델에는 얼굴 편집용 morph target(face_*)이 없습니다.
-                          Blender에서 Shape Key를 추가한 VRM 모델을 드롭하여 테스트하세요.
-                        </p>
-                      </div>
-                    )
-                  )}
-                </>
-              )}
+              {activeTab === 'face' && (() => {
+                const filtered = filterMorphs(faceMorphs);
+                const eyeMorphs = filtered.filter((n) => n.startsWith('Eye_'));
+                const browMorphs = filtered.filter((n) => n.startsWith('Brow_'));
+                const noseMorphs = filtered.filter((n) => n.startsWith('Nose_'));
+                const mouthMorphs = filtered.filter((n) => n.startsWith('Mouth_'));
+                const faceShapeMorphs = filtered.filter((n) => n.startsWith('Face_') || n.startsWith('face_'));
+                const hasAny = filtered.length > 0;
 
-              {/* Body Tab */}
-              {activeTab === 'body' && (
-                <>
-                  {filterMorphs(bodyMorphs).length > 0 && (
-                    <CollapsibleSection title="체형 Morph" count={filterMorphs(bodyMorphs).length}>
-                      {filterMorphs(bodyMorphs).map((name) => (
-                        <MorphTargetSlider
-                          key={name}
-                          name={name}
-                          label={MORPH_LABELS[name] || name}
-                        />
-                      ))}
-                    </CollapsibleSection>
-                  )}
-                  {availablePresets.length > 0 && (
-                    <CollapsibleSection title="본 스케일" count={availablePresets.length}>
-                      {availablePresets.map((preset) => (
-                        <div key={preset.boneName} className="space-y-2">
-                          <h4 className="text-xs font-medium text-foreground/70 pt-1 first:pt-0">
-                            {preset.label}
-                          </h4>
-                          <div className="space-y-2 pl-3 border-l-2 border-primary/20">
-                            {preset.axes.map((axis) => (
-                              <BoneScaleSlider
-                                key={`${preset.boneName}-${axis}`}
-                                boneName={preset.boneName}
-                                axis={axis}
-                                label={AXIS_LABELS[axis]}
-                                min={0.2}
-                                max={3.0}
-                              />
+                return (
+                  <>
+                    <QuickPresets />
+                    {hasAny ? (
+                      <>
+                        {eyeMorphs.length > 0 && (
+                          <CollapsibleSection title="눈" count={eyeMorphs.length}>
+                            {eyeMorphs.map((name) => (
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
                             ))}
-                          </div>
+                          </CollapsibleSection>
+                        )}
+                        {browMorphs.length > 0 && (
+                          <CollapsibleSection title="눈썹" count={browMorphs.length}>
+                            {browMorphs.map((name) => (
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                            ))}
+                          </CollapsibleSection>
+                        )}
+                        {noseMorphs.length > 0 && (
+                          <CollapsibleSection title="코" count={noseMorphs.length}>
+                            {noseMorphs.map((name) => (
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                            ))}
+                          </CollapsibleSection>
+                        )}
+                        {mouthMorphs.length > 0 && (
+                          <CollapsibleSection title="입" count={mouthMorphs.length}>
+                            {mouthMorphs.map((name) => (
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                            ))}
+                          </CollapsibleSection>
+                        )}
+                        {faceShapeMorphs.length > 0 && (
+                          <CollapsibleSection title="얼굴형" count={faceShapeMorphs.length}>
+                            {faceShapeMorphs.map((name) => (
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                            ))}
+                          </CollapsibleSection>
+                        )}
+                      </>
+                    ) : (
+                      availableBones.length > 0 && !searchQuery && !showModifiedOnly && (
+                        <div className="rounded-xl border border-border/30 bg-accent/20 p-4">
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            이 모델에는 얼굴 편집용 morph target이 없습니다.
+                            Blender에서 Shape Key를 추가한 VRM 모델을 드롭하여 테스트하세요.
+                          </p>
                         </div>
-                      ))}
-                    </CollapsibleSection>
-                  )}
-                </>
-              )}
+                      )
+                    )}
+                  </>
+                );
+              })()}
 
               {/* Expressions Tab */}
               {activeTab === 'expressions' && (
@@ -545,12 +555,12 @@ export default function DevViewerPage() {
             <div className="px-4 py-2 border-t border-border/30 shrink-0 bg-card/30">
               <div className="flex items-center justify-between">
                 <p className="text-[10px] text-muted-foreground/40 font-mono">
-                  {modifiedMorphCount + modifiedBoneCount > 0
-                    ? `${modifiedMorphCount + modifiedBoneCount} modified`
+                  {modifiedMorphCount > 0
+                    ? `${modifiedMorphCount} modified`
                     : 'ready'}
                 </p>
                 <p className="text-[10px] text-muted-foreground/30">
-                  R G S 1-6 | Ctrl+Z/S
+                  R G S 1-5 | Ctrl+Z/S
                 </p>
               </div>
             </div>

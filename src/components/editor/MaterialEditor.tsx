@@ -99,15 +99,42 @@ function MaterialSlotEditor({ mat }: { mat: DetectedMaterial }) {
   );
 }
 
+function HairMeshColorEditor() {
+  const hairFrontUrl = useEditorStore((s) => s.hairFrontUrl);
+  const hairBackUrl = useEditorStore((s) => s.hairBackUrl);
+  const hairColor = useEditorStore((s) => s.hairColor);
+  const setHairColor = useEditorStore((s) => s.setHairColor);
+
+  if (!hairFrontUrl && !hairBackUrl) return null;
+
+  return (
+    <CollapsibleSection title="헤어 메시" count={1}>
+      <div className="space-y-2.5">
+        <ColorPicker
+          color={hairColor ?? '#71635A'}
+          onChange={setHairColor}
+          presets={COLOR_PRESETS.hair}
+          label="헤어 색상"
+        />
+      </div>
+    </CollapsibleSection>
+  );
+}
+
 export function MaterialEditor({ detectedMaterials }: MaterialEditorProps) {
   const resetMaterials = useEditorStore((s) => s.resetMaterials);
 
   if (detectedMaterials.length === 0) {
     return (
-      <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          모델에서 편집 가능한 재질이 감지되지 않았습니다.
-        </p>
+      <div className="space-y-4">
+        <HairMeshColorEditor />
+        {!useEditorStore.getState().hairFrontUrl && !useEditorStore.getState().hairBackUrl && (
+          <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              모델에서 편집 가능한 재질이 감지되지 않았습니다.
+            </p>
+          </div>
+        )}
       </div>
     );
   }
@@ -141,6 +168,7 @@ export function MaterialEditor({ detectedMaterials }: MaterialEditorProps) {
       >
         재질 초기화
       </button>
+      <HairMeshColorEditor />
       {categoryOrder.map((cat) => {
         const mats = grouped[cat];
         if (!mats || mats.length === 0) return null;

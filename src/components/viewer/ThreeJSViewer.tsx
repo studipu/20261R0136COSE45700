@@ -4,6 +4,7 @@ import { Suspense, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
 import { VRMModel } from './VRMModel';
+import { HairAttachment } from './HairAttachment';
 import { CameraControls } from './CameraControls';
 import { SceneLighting } from './SceneLighting';
 import type { DetectedMaterial } from '@/lib/vrm/materials';
@@ -44,6 +45,7 @@ export const ThreeJSViewer = forwardRef<ThreeJSViewerHandle, ThreeJSViewerProps>
         <CameraControls ref={cameraControlsRef} />
         <Suspense fallback={null}>
           <VRMModel url={modelUrl} onLoaded={onModelLoaded} />
+          <HairAttachment />
         </Suspense>
         {showGrid && <gridHelper args={[10, 20, '#2a2540', '#1e1a30']} />}
         {showStats && <Stats />}
