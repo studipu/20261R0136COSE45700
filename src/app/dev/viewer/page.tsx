@@ -9,6 +9,7 @@ import { MaterialEditor } from '@/components/editor/MaterialEditor';
 import { VersionPanel } from '@/components/editor/VersionPanel';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
 import { PresetGrid } from '@/components/editor/PresetGrid';
+import { ReferenceModelUpload } from '@/components/editor/ReferenceModelUpload';
 import { SliderSearch } from '@/components/editor/SliderSearch';
 import { QuickPresets } from '@/components/editor/QuickPresets';
 import { ViewerToolbar } from '@/components/viewer/ViewerToolbar';
@@ -17,6 +18,8 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCanvasScreenshot } from '@/hooks/useCanvasScreenshot';
 import type { DetectedMaterial } from '@/lib/vrm/materials';
 import type { TemplateMetadata } from '@/types/template';
+import { recommendHairPreset } from '@/lib/hair-matching';
+import { getBaseVRM } from '@/lib/vrm-ref';
 import {
   User,
   Smile,
@@ -62,35 +65,69 @@ const MORPH_LABELS: Record<string, string> = {
   face_forehead_width: '이마 너비',
   face_eyebrow_height: '눈썹 높이',
   face_eyebrow_thickness: '눈썹 두께',
-  Eye_Width: '눈 가로 너비',
-  Eye_WidthV: '눈 세로 너비',
-  Eye_Height: '눈 높이',
-  Eye_Dist: '눈 간격',
-  Eye_Rot: '눈매 각도',
-  Eye_FrontHeight: '앞머리쪽 눈 높이',
-  Eye_FrontFlat: '앞머리쪽 눈 평탄도',
-  Eye_TailHeight: '꼬리쪽 눈 높이',
-  Eye_TopLidFlat: '윗눈꺼풀 평탄도',
-  Eye_LowerLidFlat: '아랫눈꺼풀 평탄도',
-  Eye_TopLidDown: '윗눈꺼풀 내림',
-  Eye_LowerLidUp: '아랫눈꺼풀 올림',
-  Eye_PupilWidth: '동공 가로 크기',
-  Eye_PupilWidthV: '동공 세로 크기',
+  Eye_Width: '눈 가로폭',
+  Eye_WidthV: '눈 세로폭',
+  Eye_Height: '눈 높이 (위치)',
+  Eye_Dist: '눈 사이 간격',
+  Eye_Rot: '눈 회전',
+  Eye_FrontHeight: '눈 앞머리 높이',
+  Eye_FrontFlat: '눈 앞머리 곡선 완화',
+  Eye_TailHeight: '눈꼬리 곡선 완화',
+  Eye_TopLidFlat: '윗눈꺼풀 평평하게',
+  Eye_LowerLidFlat: '아래 눈꺼풀 평평하게',
+  Eye_TopLidDown: '윗눈꺼풀 내리기',
+  Eye_LowerLidUp: '아래 눈꺼풀 올리기',
+  Eye_PupilWidth: '눈동자 가로폭',
+  Eye_PupilWidthV: '눈동자 세로폭',
   Brow_Dist: '눈썹 간격',
-  Brow_Height: '눈썹 높이',
-  Brow_Rot: '눈썹 각도',
-  Brow_Width: '눈썹 가로 너비',
-  Brow_WidthV: '눈썹 세로 너비',
+  Brow_Height: '눈썹 높이 (위치)',
+  Brow_Rot: '눈썹 회전',
+  Brow_Width: '눈썹 가로폭',
+  Brow_WidthV: '눈썹 세로폭',
   Nose_Height: '코 높이',
   Nose_Width: '코 너비',
-  Nose_UnderNose: '인중 길이',
+  Nose_UnderNose: '코 밑 높이',
   Mouth_Width: '입 너비',
-  Mouth_Height: '입 높이',
+  Mouth_Height: '입 높이 (위치)',
   Mouth_Corner: '입꼬리',
-  Face_JawLine: '턱선',
-  Face_Cheek: '볼 볼륨',
-  Face_Roundness: '얼굴 둥글기',
-  Face_ChinWidth: '턱 너비',
+  Face_JawLine: '턱선 날렵하게',
+  Face_Cheek: '볼살 부풀리기',
+  Face_Roundness: '얼굴형 둥글게',
+  Face_ChinWidth: '턱 가로폭',
+};
+
+// Morph target slider ranges from keyData spec
+// (-1:1) for bidirectional morphs, (0:1) for unidirectional morphs
+const MORPH_RANGES: Record<string, { min: number; max: number }> = {
+  Eye_Width:       { min: -1, max: 1 },
+  Eye_WidthV:      { min: -1, max: 1 },
+  Eye_Height:      { min: -1, max: 1 },
+  Eye_Dist:        { min: -1, max: 1 },
+  Eye_Rot:         { min: -1, max: 1 },
+  Eye_FrontHeight: { min: -1, max: 1 },
+  Eye_FrontFlat:   { min: 0,  max: 1 },
+  Eye_TailHeight:  { min: -1, max: 1 },
+  Eye_TopLidFlat:  { min: 0,  max: 1 },
+  Eye_LowerLidFlat:{ min: 0,  max: 1 },
+  Eye_TopLidDown:  { min: 0,  max: 1 },
+  Eye_LowerLidUp:  { min: 0,  max: 1 },
+  Eye_PupilWidth:  { min: -1, max: 1 },
+  Eye_PupilWidthV: { min: -1, max: 1 },
+  Brow_Dist:       { min: -1, max: 1 },
+  Brow_Height:     { min: -1, max: 1 },
+  Brow_Rot:        { min: -1, max: 1 },
+  Brow_Width:      { min: -1, max: 1 },
+  Brow_WidthV:     { min: -1, max: 1 },
+  Nose_Height:     { min: -1, max: 1 },
+  Nose_Width:      { min: 0,  max: 1 },
+  Nose_UnderNose:  { min: -1, max: 1 },
+  Mouth_Width:     { min: -1, max: 1 },
+  Mouth_Height:    { min: -1, max: 1 },
+  Mouth_Corner:    { min: -1, max: 1 },
+  Face_JawLine:    { min: 0,  max: 1 },
+  Face_Cheek:      { min: 0,  max: 1 },
+  Face_Roundness:  { min: 0,  max: 1 },
+  Face_ChinWidth:  { min: 0,  max: 1 },
 };
 
 
@@ -129,6 +166,7 @@ export default function DevViewerPage() {
   const canRedo = useEditorStore((s) => s.canRedo);
   const saveVersion = useEditorStore((s) => s.saveVersion);
   const morphTargets = useEditorStore((s) => s.morphTargets);
+  const setHairRecommendation = useEditorStore((s) => s.setHairRecommendation);
   const viewerRef = useRef<ThreeJSViewerHandle>(null);
   const { capture } = useCanvasScreenshot();
 
@@ -143,8 +181,17 @@ export default function DevViewerPage() {
       setMorphTargetNames(morphs);
       setAvailableBones(bones);
       setDetectedMaterials(materials);
+
+      // Run hair matching after VRM scene is fully set up
+      requestAnimationFrame(() => {
+        const vrm = getBaseVRM();
+        if (vrm) {
+          const recommendation = recommendHairPreset(vrm, materials);
+          setHairRecommendation(recommendation);
+        }
+      });
     },
-    []
+    [setHairRecommendation]
   );
 
   const handleDrop = useCallback(
@@ -464,35 +511,35 @@ export default function DevViewerPage() {
                         {eyeMorphs.length > 0 && (
                           <CollapsibleSection title="눈" count={eyeMorphs.length}>
                             {eyeMorphs.map((name) => (
-                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} min={MORPH_RANGES[name]?.min ?? 0} max={MORPH_RANGES[name]?.max ?? 1} />
                             ))}
                           </CollapsibleSection>
                         )}
                         {browMorphs.length > 0 && (
                           <CollapsibleSection title="눈썹" count={browMorphs.length}>
                             {browMorphs.map((name) => (
-                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} min={MORPH_RANGES[name]?.min ?? 0} max={MORPH_RANGES[name]?.max ?? 1} />
                             ))}
                           </CollapsibleSection>
                         )}
                         {noseMorphs.length > 0 && (
                           <CollapsibleSection title="코" count={noseMorphs.length}>
                             {noseMorphs.map((name) => (
-                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} min={MORPH_RANGES[name]?.min ?? 0} max={MORPH_RANGES[name]?.max ?? 1} />
                             ))}
                           </CollapsibleSection>
                         )}
                         {mouthMorphs.length > 0 && (
                           <CollapsibleSection title="입" count={mouthMorphs.length}>
                             {mouthMorphs.map((name) => (
-                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} min={MORPH_RANGES[name]?.min ?? 0} max={MORPH_RANGES[name]?.max ?? 1} />
                             ))}
                           </CollapsibleSection>
                         )}
                         {faceShapeMorphs.length > 0 && (
                           <CollapsibleSection title="얼굴형" count={faceShapeMorphs.length}>
                             {faceShapeMorphs.map((name) => (
-                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} />
+                              <MorphTargetSlider key={name} name={name} label={MORPH_LABELS[name] || name} min={MORPH_RANGES[name]?.min ?? 0} max={MORPH_RANGES[name]?.max ?? 1} />
                             ))}
                           </CollapsibleSection>
                         )}
@@ -542,7 +589,10 @@ export default function DevViewerPage() {
 
               {/* Style Tab */}
               {activeTab === 'style' && (
-                <PresetGrid />
+                <>
+                  <ReferenceModelUpload />
+                  <PresetGrid />
+                </>
               )}
 
               {/* Version Tab */}
