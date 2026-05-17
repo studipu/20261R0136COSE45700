@@ -1,0 +1,227 @@
+{
+  "uniqueFiles": [
+    {
+      "dir": "5",
+      "file": "N00_000_00_HairBack_00_HAIR.glb",
+      "filePath": "public/models/hair/5/N00_000_00_HairBack_00_HAIR.glb",
+      "meshCount": 92,
+      "primCount": 99,
+      "vertexCount": 62353,
+      "geometryHash": "0b39b57de54570206be087c06e245a7b",
+      "size": 15814192
+    },
+    {
+      "dir": "5",
+      "file": "N00_000_Hair_00_HAIR.glb",
+      "filePath": "public/models/hair/5/N00_000_Hair_00_HAIR.glb",
+      "meshCount": 92,
+      "primCount": 106,
+      "vertexCount": 115406,
+      "geometryHash": "a84c9efb2a26332aee664061ed041ca4",
+      "size": 15816176
+    },
+    {
+      "dir": "6",
+      "file": "N00_000_00_HairBack_00_HAIR.glb",
+      "filePath": "public/models/hair/6/N00_000_00_HairBack_00_HAIR.glb",
+      "meshCount": 79,
+      "primCount": 86,
+      "vertexCount": 51847,
+      "geometryHash": "cb279a819569106593bc606217f107c0",
+      "size": 14583424
+    },
+    {
+      "dir": "6",
+      "file": "N00_000_Hair_00_HAIR.glb",
+      "filePath": "public/models/hair/6/N00_000_Hair_00_HAIR.glb",
+      "meshCount": 79,
+      "primCount": 93,
+      "vertexCount": 105320,
+      "geometryHash": "c47e8f539fa6f114b9c7266678630341",
+      "size": 14585276
+    },
+    {
+      "dir": "7",
+      "file": "N00_000_00_HairBack_00_HAIR.glb",
+      "filePath": "public/models/hair/7/N00_000_00_HairBack_00_HAIR.glb",
+      "meshCount": 62,
+      "primCount": 69,
+      "vertexCount": 57051,
+      "geometryHash": "03bba18658f97496b9c9e19d6668663f",
+      "size": 15199608
+    },
+    {
+      "dir": "7",
+      "file": "N00_000_Hair_00_HAIR.glb",
+      "filePath": "public/models/hair/7/N00_000_Hair_00_HAIR.glb",
+      "meshCount": 62,
+      "primCount": 76,
+      "vertexCount": 110524,
+      "geometryHash": "88893750246dcfead78f9d9d3a755e87",
+      "size": 15201292
+    },
+    {
+      "dir": "8",
+      "file": "N00_000_00_HairBack_00_HAIR.glb",
+      "filePath": "public/models/hair/8/N00_000_00_HairBack_00_HAIR.glb",
+      "meshCount": 40,
+      "primCount": 47,
+      "vertexCount": 52419,
+      "geometryHash": "e20d1e03c88a9280278be08e22a9e194",
+      "size": 14363884
+    },
+    {
+      "dir": "8",
+      "file": "N00_000_Hair_00_HAIR.glb",
+      "filePath": "public/models/hair/8/N00_000_Hair_00_HAIR.glb",
+      "meshCount": 40,
+      "primCount": 54,
+      "vertexCount": 105892,
+      "geometryHash": "1b60b7c9b49e1b370f1bf28f57381e7b",
+      "size": 14365344
+    },
+    {
+      "dir": "9",
+      "file": "N00_000_00_HairBack_00_HAIR.glb",
+      "filePath": "public/models/hair/9/N00_000_00_HairBack_00_HAIR.glb",
+      "meshCount": 55,
+      "primCount": 62,
+      "vertexCount": 45136,
+      "geometryHash": "789d6a03f66929f6cbd059c1ad7e6bbc",
+      "size": 13950772
+    },
+    {
+      "dir": "9",
+      "file": "N00_000_Hair_00_HAIR.glb",
+      "filePath": "public/models/hair/9/N00_000_Hair_00_HAIR.glb",
+      "meshCount": 55,
+      "primCount": 69,
+      "vertexCount": 98609,
+      "geometryHash": "f5efd1af8d41e74c3e93b649fcf61544",
+      "size": 13952384
+    }
+  ],
+  "duplicates": [],
+  "hashGroups": {
+    "N00_000_00_HairBack_00_HAIR.glb:0b39b57de54570206be087c06e245a7b": [
+      {
+        "dir": "5",
+        "file": "N00_000_00_HairBack_00_HAIR.glb",
+        "filePath": "public/models/hair/5/N00_000_00_HairBack_00_HAIR.glb",
+        "meshCount": 92,
+        "primCount": 99,
+        "vertexCount": 62353,
+        "geometryHash": "0b39b57de54570206be087c06e245a7b",
+        "size": 15814192
+      }
+    ],
+    "N00_000_Hair_00_HAIR.glb:a84c9efb2a26332aee664061ed041ca4": [
+      {
+        "dir": "5",
+        "file": "N00_000_Hair_00_HAIR.glb",
+        "filePath": "public/models/hair/5/N00_000_Hair_00_HAIR.glb",
+        "meshCount": 92,
+        "primCount": 106,
+        "vertexCount": 115406,
+        "geometryHash": "a84c9efb2a26332aee664061ed041ca4",
+        "size": 15816176
+      }
+    ],
+    "N00_000_00_HairBack_00_HAIR.glb:cb279a819569106593bc606217f107c0": [
+      {
+        "dir": "6",
+        "file": "N00_000_00_HairBack_00_HAIR.glb",
+        "filePath": "public/models/hair/6/N00_000_00_HairBack_00_HAIR.glb",
+        "meshCount": 79,
+        "primCount": 86,
+        "vertexCount": 51847,
+        "geometryHash": "cb279a819569106593bc606217f107c0",
+        "size": 14583424
+      }
+    ],
+    "N00_000_Hair_00_HAIR.glb:c47e8f539fa6f114b9c7266678630341": [
+      {
+        "dir": "6",
+        "file": "N00_000_Hair_00_HAIR.glb",
+        "filePath": "public/models/hair/6/N00_000_Hair_00_HAIR.glb",
+        "meshCount": 79,
+        "primCount": 93,
+        "vertexCount": 105320,
+        "geometryHash": "c47e8f539fa6f114b9c7266678630341",
+        "size": 14585276
+      }
+    ],
+    "N00_000_00_HairBack_00_HAIR.glb:03bba18658f97496b9c9e19d6668663f": [
+      {
+        "dir": "7",
+        "file": "N00_000_00_HairBack_00_HAIR.glb",
+        "filePath": "public/models/hair/7/N00_000_00_HairBack_00_HAIR.glb",
+        "meshCount": 62,
+        "primCount": 69,
+        "vertexCount": 57051,
+        "geometryHash": "03bba18658f97496b9c9e19d6668663f",
+        "size": 15199608
+      }
+    ],
+    "N00_000_Hair_00_HAIR.glb:88893750246dcfead78f9d9d3a755e87": [
+      {
+        "dir": "7",
+        "file": "N00_000_Hair_00_HAIR.glb",
+        "filePath": "public/models/hair/7/N00_000_Hair_00_HAIR.glb",
+        "meshCount": 62,
+        "primCount": 76,
+        "vertexCount": 110524,
+        "geometryHash": "88893750246dcfead78f9d9d3a755e87",
+        "size": 15201292
+      }
+    ],
+    "N00_000_00_HairBack_00_HAIR.glb:e20d1e03c88a9280278be08e22a9e194": [
+      {
+        "dir": "8",
+        "file": "N00_000_00_HairBack_00_HAIR.glb",
+        "filePath": "public/models/hair/8/N00_000_00_HairBack_00_HAIR.glb",
+        "meshCount": 40,
+        "primCount": 47,
+        "vertexCount": 52419,
+        "geometryHash": "e20d1e03c88a9280278be08e22a9e194",
+        "size": 14363884
+      }
+    ],
+    "N00_000_Hair_00_HAIR.glb:1b60b7c9b49e1b370f1bf28f57381e7b": [
+      {
+        "dir": "8",
+        "file": "N00_000_Hair_00_HAIR.glb",
+        "filePath": "public/models/hair/8/N00_000_Hair_00_HAIR.glb",
+        "meshCount": 40,
+        "primCount": 54,
+        "vertexCount": 105892,
+        "geometryHash": "1b60b7c9b49e1b370f1bf28f57381e7b",
+        "size": 14365344
+      }
+    ],
+    "N00_000_00_HairBack_00_HAIR.glb:789d6a03f66929f6cbd059c1ad7e6bbc": [
+      {
+        "dir": "9",
+        "file": "N00_000_00_HairBack_00_HAIR.glb",
+        "filePath": "public/models/hair/9/N00_000_00_HairBack_00_HAIR.glb",
+        "meshCount": 55,
+        "primCount": 62,
+        "vertexCount": 45136,
+        "geometryHash": "789d6a03f66929f6cbd059c1ad7e6bbc",
+        "size": 13950772
+      }
+    ],
+    "N00_000_Hair_00_HAIR.glb:f5efd1af8d41e74c3e93b649fcf61544": [
+      {
+        "dir": "9",
+        "file": "N00_000_Hair_00_HAIR.glb",
+        "filePath": "public/models/hair/9/N00_000_Hair_00_HAIR.glb",
+        "meshCount": 55,
+        "primCount": 69,
+        "vertexCount": 98609,
+        "geometryHash": "f5efd1af8d41e74c3e93b649fcf61544",
+        "size": 13952384
+      }
+    ]
+  }
+}

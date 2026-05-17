@@ -1,0 +1,52 @@
+{
+  "id": "front_001_short_straight_fringe",
+  "part_type": "front",
+  "display_name": "Short Straight Fringe (Procedural v2)",
+  "display_name_kr": "짧은 일자 앞머리 (절차적 v2)",
+  "tags": {
+    "length": "short",
+    "style": "straight",
+    "volume": "normal",
+    "bangs": "fringe",
+    "asymmetry": false
+  },
+  "geometry": {
+    "vertex_count": 300,
+    "face_count": 120,
+    "anchor_point": [
+      0.0,
+      0.025,
+      1.465
+    ],
+    "bbox_z_range": [
+      1.4275,
+      1.4967
+    ]
+  },
+  "rigging": {
+    "method": "armature_modifier_single_bone",
+    "bone": "J_Bip_C_Head",
+    "weight": 1.0,
+    "swing_bone_chains": [],
+    "uses_shared_colliders": [
+      "head_collider"
+    ],
+    "note": "PoC v0.1: SpringBone 미설정. 머리 본에 정적 부착만"
+  },
+  "material": {
+    "default_color": "#3a2820",
+    "shader": "Principled_BSDF",
+    "shader_target": "MToon (변환 예정)",
+    "supports_color_change": true
+  },
+  "license": {
+    "source": "self_made_procedural",
+    "author": "Claude (Blender MCP)",
+    "commercial_use": true,
+    "redistributable": false
+  },
+  "embedding_model": null,
+  "created_by": "claude_blender_mcp",
+  "created_at": "2026-05-05",
+  "version": "0.2"
+}
