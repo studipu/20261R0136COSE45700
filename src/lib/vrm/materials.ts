@@ -26,13 +26,13 @@ function hexToColor(hex: string): THREE.Color {
 function isEyeOrHairMaterial(matName: string): boolean {
   const n = matName.toLowerCase();
   // Only exclude materials that are CLEARLY eye or hair
-  return /\beye\b|iris|pupil|cornea|sclera|eyeball|hair|bangs|wig/i.test(n) && !/eyebrow|eyelash|eyelid/i.test(n);
+  return /\beye\b|iris|pupil|cornea|sclera|eyeball|hair|bangs|wig|strand|fringe|tress|locks|mane|髪/i.test(n) && !/eyebrow|eyelash|eyelid/i.test(n);
 }
 
 function classifyMaterial(matName: string, meshName: string): DetectedMaterial['category'] {
   const n = (matName + ' ' + meshName).toLowerCase();
   if (/\beye\b|iris|pupil|cornea|sclera|eyeball/i.test(n) && !/eyebrow|eyelash|eyelid/i.test(n)) return 'eye';
-  if (/hair|bangs|ponytail|braid|wig/i.test(n)) return 'hair';
+  if (/hair|bangs|ponytail|braid|wig|strand|fringe|tress|locks|mane|髪/i.test(n)) return 'hair';
   if (/cloth|shirt|pant|dress|outfit|jacket|shoe|boot|sock|glove|hat|skirt|belt|uniform|costume/i.test(n)) return 'cloth';
   if (/skin|face|body|neck|arm|leg|hand|foot|feet|head|torso|chest|finger|toe|ear|nose|lip|cheek|chin|jaw|forehead|shoulder|elbow|knee|ankle|wrist|flesh|brow|mouth/i.test(n)) return 'skin';
   return 'other';
