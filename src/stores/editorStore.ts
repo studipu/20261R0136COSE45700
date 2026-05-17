@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { EditorState, EditorActions, AvatarVersion, MaterialSlot } from '@/types/editor';
+import type { EditorState, EditorActions, AvatarVersion, MaterialSlot, HairRecommendation } from '@/types/editor';
 
 // --- Undo/Redo History ---
 
@@ -10,6 +10,7 @@ interface HistoryEntry {
   hairFrontUrl: EditorState['hairFrontUrl'];
   hairBackUrl: EditorState['hairBackUrl'];
   hairColor: EditorState['hairColor'];
+  outfitUrl: EditorState['outfitUrl'];
 }
 
 const MAX_HISTORY = 50;
@@ -28,6 +29,7 @@ function snapshot(state: EditorState): HistoryEntry {
     hairFrontUrl: state.hairFrontUrl,
     hairBackUrl: state.hairBackUrl,
     hairColor: state.hairColor,
+    outfitUrl: state.outfitUrl,
   };
 }
 
@@ -74,6 +76,8 @@ const initialState: EditorState = {
   hairFrontUrl: null,
   hairBackUrl: null,
   hairColor: null,
+  hairRecommendation: null,
+  outfitUrl: null,
   versions: [],
   isLoading: false,
   error: null,
@@ -206,6 +210,16 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set({ hairColor: color });
   },
 
+  setHairRecommendation: (rec) => {
+    set({ hairRecommendation: rec });
+  },
+
+  // --- Outfit ---
+  setOutfit: (url) => {
+    pushUndo(get());
+    set({ outfitUrl: url });
+  },
+
   // --- Undo / Redo ---
   undo: () => {
     if (undoStack.length === 0) return;
@@ -219,6 +233,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       hairFrontUrl: prev.hairFrontUrl,
       hairBackUrl: prev.hairBackUrl,
       hairColor: prev.hairColor,
+      outfitUrl: prev.outfitUrl,
     });
   },
 
@@ -234,6 +249,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       hairFrontUrl: next.hairFrontUrl,
       hairBackUrl: next.hairBackUrl,
       hairColor: next.hairColor,
+      outfitUrl: next.outfitUrl,
     });
   },
 
@@ -250,6 +266,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       hairFrontUrl: null,
       hairBackUrl: null,
       hairColor: null,
+      outfitUrl: null,
     });
   },
 

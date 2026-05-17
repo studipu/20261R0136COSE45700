@@ -40,6 +40,22 @@ export interface AvatarParameters {
   materials: MaterialMap;
 }
 
+export interface HairMatchResult {
+  presetId: string;
+  score: number;
+  colorScore: number;
+  geometryScore: number;
+}
+
+export type MatchConfidence = 'high' | 'medium' | 'low';
+
+export interface HairRecommendation {
+  bestMatch: HairMatchResult;
+  allResults: HairMatchResult[];
+  confidence: MatchConfidence;
+  extractedColor: string;
+}
+
 export interface EditorState {
   // Avatar identification
   avatarId: string | null;
@@ -54,6 +70,12 @@ export interface EditorState {
   hairFrontUrl: string | null;
   hairBackUrl: string | null;
   hairColor: string | null;
+
+  // Hair recommendation
+  hairRecommendation: HairRecommendation | null;
+
+  // Outfit attachment
+  outfitUrl: string | null;
 
   // Version management
   versions: AvatarVersion[];
@@ -92,6 +114,10 @@ export interface EditorActions {
   setHairFront: (url: string | null) => void;
   setHairBack: (url: string | null) => void;
   setHairColor: (color: string | null) => void;
+  setHairRecommendation: (rec: HairRecommendation | null) => void;
+
+  // Outfit
+  setOutfit: (url: string | null) => void;
 
   // Reset all
   resetAll: () => void;
