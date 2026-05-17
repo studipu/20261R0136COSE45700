@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useVRM } from '@/hooks/useVRM';
 import { useEditorStore } from '@/stores/editorStore';
+import { setBaseVRM } from '@/lib/vrm-ref';
 import { applyMaterialColor, applyMaterialProperty, detectMaterials } from '@/lib/vrm/materials';
 import type { DetectedMaterial } from '@/lib/vrm/materials';
 import type { VRM } from '@pixiv/three-vrm';
@@ -31,6 +32,7 @@ export function VRMModel({ url, onLoaded }: VRMModelProps) {
   useEffect(() => {
     if (vrm) {
       vrmRef.current = vrm;
+      setBaseVRM(vrm);
 
       const boneNames: string[] = [];
       if (vrm.humanoid) {
@@ -56,13 +58,71 @@ export function VRMModel({ url, onLoaded }: VRMModelProps) {
       console.log('[VRM] Skin slots:', Array.from(skinSlotsRef.current));
       onLoadedRef.current?.(expressionNames, morphTargetNames, boneNames, detectedMats);
     }
+    return () => {
+      setBaseVRM(null);
+    };
   }, [vrm, expressionNames, morphTargetNames]);
+
+  // Hide/show VRM's built-in hair, outfit, and body meshes based on custom selections
+  const prevHideHair = useRef(false);
+  const prevHideOutfit = useRef(false);
+  const prevHideBody = useRef(false);
 
   useFrame((_, delta) => {
     const currentVrm = vrmRef.current;
     if (!currentVrm) return;
 
-    const { morphTargets, boneScales, materials } = useEditorStore.getState();
+    const { morphTargets, boneScales, materials, hairFrontUrl, hairBackUrl, outfitUrl } = useEditorStore.getState();
+
+    // Toggle built-in hair visibility
+    const hideHair = !!(hairFrontUrl || hairBackUrl);
+    if (hideHair !== prevHideHair.current) {
+      prevHideHair.current = hideHair;
+      currentVrm.scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) {
+          if (mat && /HAIR/i.test(mat.name)) {
+            mesh.visible = !hideHair;
+          }
+        }
+      });
+    }
+
+    // Toggle built-in outfit visibility
+    const hideOutfit = !!outfitUrl;
+    if (hideOutfit !== prevHideOutfit.current) {
+      prevHideOutfit.current = hideOutfit;
+      currentVrm.scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) {
+          if (mat && /CLOTH/i.test(mat.name)) {
+            mesh.visible = !hideOutfit;
+          }
+        }
+      });
+    }
+
+    // Toggle base body skin visibility — the outfit VRM provides its own
+    // fitted body mesh, so hide the base body to prevent poke-through.
+    const hideBody = !!outfitUrl;
+    if (hideBody !== prevHideBody.current) {
+      prevHideBody.current = hideBody;
+      currentVrm.scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const mat of mats) {
+          // Hide body SKIN materials but keep face/eye SKIN visible
+          if (mat && /SKIN/i.test(mat.name) && /Body/i.test(mat.name)) {
+            mat.visible = !hideBody;
+          }
+        }
+      });
+    }
 
     // Separate expression-managed names from raw morph targets
     const expressionSet = new Set<string>();
