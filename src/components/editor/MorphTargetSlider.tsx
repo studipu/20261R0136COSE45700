@@ -8,9 +8,11 @@ import { RotateCcw } from 'lucide-react';
 interface MorphTargetSliderProps {
   name: string;
   label?: string;
+  min?: number;
+  max?: number;
 }
 
-export function MorphTargetSlider({ name, label }: MorphTargetSliderProps) {
+export function MorphTargetSlider({ name, label, min = 0, max = 1 }: MorphTargetSliderProps) {
   const value = useEditorStore((s) => s.morphTargets[name] ?? 0);
   const setMorphTarget = useEditorStore((s) => s.setMorphTarget);
 
@@ -52,8 +54,8 @@ export function MorphTargetSlider({ name, label }: MorphTargetSliderProps) {
       </div>
       <Slider
         value={[value]}
-        min={0}
-        max={1}
+        min={min}
+        max={max}
         step={0.01}
         onValueChange={(val) => setMorphTarget(name, Array.isArray(val) ? val[0] : val)}
       />
