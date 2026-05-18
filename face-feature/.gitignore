@@ -1,0 +1,43 @@
+# Python 캐시 파일
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# 가상 환경
+venv/
+env/
+.venv/
+
+# 패키지 관리
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 환경 설정
+.env
+.env.local
+
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.glb
+*.npy
+*.task
+*.json
+*.csv
+
+# 모델 가중치
+*.pth.tar
+*.pth
+
+# 내부 문서
+ruld.md
+
+# 출력 디렉토리
+output/
+output_test/
+output_landmark_vis/
