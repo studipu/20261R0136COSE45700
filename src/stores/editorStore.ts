@@ -256,6 +256,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   canUndo: () => undoStack.length > 0,
   canRedo: () => redoStack.length > 0,
 
+  // --- Pipeline ---
+  applyPipelineResult: (params) => {
+    pushUndo(get());
+    set((state) => ({
+      morphTargets: { ...state.morphTargets, ...params },
+    }));
+  },
+
   // --- Reset All ---
   resetAll: () => {
     pushUndo(get());

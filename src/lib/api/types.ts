@@ -33,8 +33,13 @@ export interface TemplateAPI {
   getTemplate(templateId: string): Promise<TemplateMetadata | null>;
 }
 
+export interface PipelineAPI {
+  extractFeatures(imageFile: File): Promise<import('@/types/pipeline').PipelineResult>;
+}
+
 export interface APIClient {
   avatar: AvatarAPI;
   version: VersionAPI;
   template: TemplateAPI;
+  pipeline: PipelineAPI;
 }

@@ -1,4 +1,4 @@
-import type { APIClient, AvatarAPI, VersionAPI, TemplateAPI, SaveAvatarRequest, AvatarRecord } from './types';
+import type { APIClient, AvatarAPI, VersionAPI, TemplateAPI, PipelineAPI, SaveAvatarRequest, AvatarRecord } from './types';
 import type { AvatarVersion } from '@/types/editor';
 import type { TemplateMetadata } from '@/types/template';
 import { TEMPLATES } from '@/data/templates';
@@ -123,8 +123,17 @@ const localTemplateAPI: TemplateAPI = {
 
 // --- Combined Client ---
 
+const localPipelineAPI: PipelineAPI = {
+  async extractFeatures(_imageFile: File) {
+    // TODO: Replace with actual HTTP call when server is ready
+    const { MOCK_PIPELINE_RESULT } = await import('@/data/mock-pipeline-result');
+    return MOCK_PIPELINE_RESULT;
+  },
+};
+
 export const localAPIClient: APIClient = {
   avatar: localAvatarAPI,
   version: localVersionAPI,
   template: localTemplateAPI,
+  pipeline: localPipelineAPI,
 };
