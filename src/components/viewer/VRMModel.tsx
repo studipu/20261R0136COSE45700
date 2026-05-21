@@ -26,6 +26,7 @@ export function VRMModel({ url, onLoaded }: VRMModelProps) {
   const onLoadedRef = useRef(onLoaded);
   onLoadedRef.current = onLoaded;
   const prevMaterialsRef = useRef<string>('');
+  const prevMorphKeysRef = useRef<Set<string>>(new Set());
   // Track which slots are skin category
   const skinSlotsRef = useRef<Set<string>>(new Set());
 
@@ -176,10 +177,30 @@ export function VRMModel({ url, onLoaded }: VRMModelProps) {
     // Update VRM internals (expressions, spring bones, etc.)
     currentVrm.update(delta);
 
+    // Track which morph keys were applied so we can reset removed ones on undo
+    const currentMorphKeys = new Set(Object.keys(morphTargets));
+    const removedKeys: string[] = [];
+    for (const key of prevMorphKeysRef.current) {
+      if (!currentMorphKeys.has(key)) {
+        removedKeys.push(key);
+      }
+    }
+    prevMorphKeysRef.current = currentMorphKeys;
+
     // Apply raw morphTargetInfluences (face_*, body_* from Blender)
     currentVrm.scene.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (mesh.isMesh && mesh.morphTargetDictionary && mesh.morphTargetInfluences) {
+        // Reset morph targets that were removed (e.g. by undo)
+        for (const name of removedKeys) {
+          if (!expressionSet.has(name)) {
+            const index = mesh.morphTargetDictionary[name];
+            if (index !== undefined) {
+              mesh.morphTargetInfluences[index] = 0;
+            }
+          }
+        }
+        // Apply current morph targets
         for (const [name, value] of Object.entries(morphTargets)) {
           if (!expressionSet.has(name)) {
             const index = mesh.morphTargetDictionary[name];

@@ -108,63 +108,175 @@ export const PRESET_ITEMS: PresetItem[] = [
   },
 ];
 
+// --- 얼굴 프리셋 (Fcl_* morph targets) ---
+
 export const QUICK_PRESETS: QuickPreset[] = [
   {
-    id: 'big-eyes-small-nose',
-    name: '큰 눈 + 작은 코',
-    description: '귀여운 인상의 큰 눈과 작은 코 조합',
+    id: 'big-eyes-small-mouth',
+    name: '큰 눈 + 작은 입',
+    description: '초롱초롱한 큰 눈과 작은 입 조합',
+    category: 'face',
     isBuiltIn: true,
     values: {
       morphTargets: {
-        face_eye_size: 0.8,
-        face_eye_height: 0.5,
-        face_nose_height: 0.2,
-        face_nose_width: 0.2,
-        face_nose_length: 0.2,
+        Fcl_EYE_Spread: 0.6,
+        Fcl_MTH_Small: 0.7,
       },
     },
   },
   {
-    id: 'v-line-jaw',
-    name: 'V라인 턱',
-    description: '갸름한 V라인 턱선',
+    id: 'gentle-smile',
+    name: '부드러운 미소',
+    description: '살짝 웃는 자연스러운 표정',
+    category: 'face',
     isBuiltIn: true,
     values: {
       morphTargets: {
-        face_jaw_width: 0.2,
-        face_jaw_length: 0.6,
-        face_chin_shape: 0.7,
-        face_cheek_fullness: 0.3,
+        Fcl_EYE_Joy: 0.3,
+        Fcl_MTH_Fun: 0.4,
       },
     },
   },
   {
-    id: 'soft-round-face',
-    name: '부드러운 동그란 얼굴',
-    description: '둥글고 부드러운 인상',
+    id: 'chic-look',
+    name: '시크한 표정',
+    description: '차분하고 쿨한 인상',
+    category: 'face',
     isBuiltIn: true,
     values: {
       morphTargets: {
-        face_jaw_width: 0.6,
-        face_cheek_fullness: 0.7,
-        face_chin_shape: 0.3,
-        face_forehead_width: 0.6,
+        Fcl_EYE_Natural: 0.7,
+        Fcl_BRW_Angry: 0.15,
+        Fcl_MTH_Close: 0.3,
       },
     },
   },
   {
-    id: 'sharp-features',
-    name: '날카로운 이목구비',
-    description: '또렷한 이목구비',
+    id: 'bright-joy',
+    name: '밝은 웃음',
+    description: '활기찬 웃는 표정',
+    category: 'face',
     isBuiltIn: true,
     values: {
       morphTargets: {
-        face_eye_tilt: 0.6,
-        face_nose_height: 0.7,
-        face_nose_length: 0.5,
-        face_jaw_width: 0.3,
-        face_chin_shape: 0.6,
+        Fcl_EYE_Joy: 0.6,
+        Fcl_BRW_Joy: 0.4,
+        Fcl_MTH_Joy: 0.5,
       },
+    },
+  },
+  {
+    id: 'surprised',
+    name: '놀란 표정',
+    description: '눈이 커지고 입이 벌어진 놀란 표정',
+    category: 'face',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Surprised: 0.5,
+        Fcl_BRW_Surprised: 0.6,
+        Fcl_MTH_O: 0.4,
+      },
+    },
+  },
+  {
+    id: 'sad-look',
+    name: '슬픈 표정',
+    description: '가라앉은 분위기의 표정',
+    category: 'face',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Sorrow: 0.5,
+        Fcl_BRW_Sorrow: 0.6,
+        Fcl_MTH_Down: 0.3,
+      },
+    },
+  },
+
+  // --- 스타일 프리셋 (헤어 + 의상 + 얼굴 조합) ---
+
+  {
+    id: 'style-casual-cute',
+    name: '캐주얼 큐트',
+    description: '귀여운 헤어 + 캐주얼 의상 + 미소',
+    category: 'style',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Joy: 0.3,
+        Fcl_MTH_Fun: 0.35,
+      },
+      hairFrontUrl: '/models/hair-library/N00_000_Hair_01_HAIR.glb',
+      hairBackUrl: '/models/hair-library/N00_000_00_HairBack_01_HAIR.glb',
+      outfitUrl: '/models/cloth_1.vrm',
+    },
+  },
+  {
+    id: 'style-chic-modern',
+    name: '시크 모던',
+    description: '날카로운 헤어 + 모던 의상 + 쿨한 표정',
+    category: 'style',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Natural: 0.7,
+        Fcl_BRW_Angry: 0.15,
+        Fcl_MTH_Close: 0.3,
+      },
+      hairFrontUrl: '/models/hair-library/N00_000_Hair_03_HAIR.glb',
+      hairBackUrl: '/models/hair-library/N00_000_00_HairBack_03_HAIR.glb',
+      outfitUrl: '/models/cloth_2.vrm',
+    },
+  },
+  {
+    id: 'style-natural-classic',
+    name: '내추럴 클래식',
+    description: '자연스러운 헤어 + 클래식 의상 + 차분한 표정',
+    category: 'style',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Natural: 0.4,
+        Fcl_MTH_Small: 0.3,
+      },
+      hairFrontUrl: '/models/hair-library/N00_000_Hair_02_HAIR.glb',
+      hairBackUrl: '/models/hair-library/N00_000_00_HairBack_02_HAIR.glb',
+      outfitUrl: '/models/cloth_3.vrm',
+    },
+  },
+  {
+    id: 'style-energetic-sporty',
+    name: '활기찬 스포티',
+    description: '짧은 헤어 + 스포티 의상 + 밝은 웃음',
+    category: 'style',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Joy: 0.5,
+        Fcl_BRW_Joy: 0.3,
+        Fcl_MTH_Joy: 0.4,
+      },
+      hairFrontUrl: '/models/hair-library/N00_000_Hair_04_HAIR.glb',
+      hairBackUrl: '/models/hair-library/N00_000_00_HairBack_04_HAIR.glb',
+      outfitUrl: '/models/cloth_4.vrm',
+    },
+  },
+  {
+    id: 'style-elegant-feminine',
+    name: '우아한 페미닌',
+    description: '긴 헤어 + 우아한 의상 + 부드러운 미소',
+    category: 'style',
+    isBuiltIn: true,
+    values: {
+      morphTargets: {
+        Fcl_EYE_Joy: 0.2,
+        Fcl_MTH_Fun: 0.3,
+        Fcl_EYE_Spread: 0.2,
+      },
+      hairFrontUrl: '/models/hair-library/N00_000_Hair_05_HAIR.glb',
+      hairBackUrl: '/models/hair-library/N00_000_00_HairBack_05_HAIR.glb',
+      outfitUrl: '/models/cloth_5.vrm',
     },
   },
 ];
