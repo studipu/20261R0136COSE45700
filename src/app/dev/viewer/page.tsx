@@ -10,6 +10,7 @@ import { VersionPanel } from '@/components/editor/VersionPanel';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
 import { PresetGrid } from '@/components/editor/PresetGrid';
 import { ReferenceModelUpload } from '@/components/editor/ReferenceModelUpload';
+import { FaceFeatureApply } from '@/components/editor/FaceFeatureApply';
 import { SliderSearch } from '@/components/editor/SliderSearch';
 import { QuickPresets } from '@/components/editor/QuickPresets';
 import { ViewerToolbar } from '@/components/viewer/ViewerToolbar';
@@ -591,6 +592,7 @@ export default function DevViewerPage() {
               {activeTab === 'style' && (
                 <>
                   <ReferenceModelUpload />
+                  <FaceFeatureApply />
                   <PresetGrid />
                 </>
               )}

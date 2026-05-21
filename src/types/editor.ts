@@ -119,6 +119,9 @@ export interface EditorActions {
   // Outfit
   setOutfit: (url: string | null) => void;
 
+  // Pipeline
+  applyPipelineResult: (params: Record<string, number>) => void;
+
   // Reset all
   resetAll: () => void;
 
