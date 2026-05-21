@@ -12,14 +12,20 @@ export interface PresetItem {
   blendShapeKey?: string;
 }
 
+export type QuickPresetCategory = 'face' | 'style';
+
 export interface QuickPreset {
   id: string;
   name: string;
   description?: string;
+  category?: QuickPresetCategory;
   isBuiltIn: boolean;
   values: {
     morphTargets?: MorphTargetMap;
     boneScales?: BoneScaleMap;
     materials?: MaterialMap;
+    hairFrontUrl?: string | null;
+    hairBackUrl?: string | null;
+    outfitUrl?: string | null;
   };
 }

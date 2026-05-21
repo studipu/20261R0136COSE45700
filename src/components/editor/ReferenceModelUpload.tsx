@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { Upload, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { loadVRM } from '@/lib/vrm/loader';
 import { detectMaterials } from '@/lib/vrm/materials';
-import { recommendHairPreset } from '@/lib/hair-matching';
+import { recommendHairPreset, recommendHairPresetFromImage } from '@/lib/hair-matching';
 import { PRESET_ITEMS } from '@/data/presets';
 import { useEditorStore } from '@/stores/editorStore';
 import type { HairRecommendation } from '@/types/editor';
@@ -24,6 +24,20 @@ const CONFIDENCE_LABELS: Record<string, string> = {
   low: '낮음',
 };
 
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.bmp'];
+const MODEL_EXTENSIONS = ['.vrm', '.glb'];
+const ACCEPTED_EXTENSIONS = [...IMAGE_EXTENSIONS, ...MODEL_EXTENSIONS];
+
+function isImageFile(name: string): boolean {
+  const lower = name.toLowerCase();
+  return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
+function isModelFile(name: string): boolean {
+  const lower = name.toLowerCase();
+  return MODEL_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
+
 export function ReferenceModelUpload() {
   const [status, setStatus] = useState<Status>('idle');
   const [result, setResult] = useState<Result | null>(null);
@@ -36,93 +50,14 @@ export function ReferenceModelUpload() {
   const setHairColor = useEditorStore((s) => s.setHairColor);
   const setHairRecommendation = useEditorStore((s) => s.setHairRecommendation);
 
-  const processFile = useCallback(
-    async (file: File) => {
-      if (!file.name.endsWith('.vrm') && !file.name.endsWith('.glb')) {
-        setStatus('error');
-        setErrorMsg('.vrm 또는 .glb 파일만 지원합니다');
-        return;
-      }
-
-      setStatus('loading');
-      setResult(null);
-      setErrorMsg('');
-
-      const blobUrl = URL.createObjectURL(file);
-
-      try {
-        // 1. Load VRM (temporary, no rendering)
-        const vrm = await loadVRM(blobUrl);
-
-        // 2. Detect materials
-        const materials = detectMaterials(vrm);
-
-        // 3. Match hair preset
-        const recommendation = recommendHairPreset(vrm, materials);
-
-        if (!recommendation || recommendation.confidence === 'low') {
-          // Dispose and report
-          vrm.scene.traverse((obj) => {
-            const mesh = obj as THREE.Mesh;
-            if (mesh.isMesh) {
-              mesh.geometry?.dispose();
-              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-              mats.forEach((m) => m?.dispose());
-            }
-          });
-          URL.revokeObjectURL(blobUrl);
-
-          if (recommendation) {
-            // Low confidence - still apply but warn
-            applyRecommendation(recommendation);
-            setStatus('success');
-          } else {
-            setStatus('error');
-            setErrorMsg('헤어 머티리얼을 감지하지 못했습니다');
-          }
-          return;
-        }
-
-        // 4. Apply recommendation
-        applyRecommendation(recommendation);
-
-        // 5. Dispose VRM scene
-        vrm.scene.traverse((obj) => {
-          const mesh = obj as THREE.Mesh;
-          if (mesh.isMesh) {
-            mesh.geometry?.dispose();
-            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            mats.forEach((m) => m?.dispose());
-          }
-        });
-
-        setStatus('success');
-      } catch (err) {
-        console.error('[ReferenceUpload] Failed:', err);
-        setStatus('error');
-        setErrorMsg('파일 로드에 실패했습니다');
-      } finally {
-        URL.revokeObjectURL(blobUrl);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setHairFront, setHairBack, setHairColor, setHairRecommendation]
-  );
-
   function applyRecommendation(recommendation: HairRecommendation) {
     const { bestMatch, extractedColor, confidence } = recommendation;
 
-    // Find preset data
     const preset = PRESET_ITEMS.find((p) => p.id === bestMatch.presetId);
 
-    // Apply hair GLBs
     setHairFront(preset?.meshUrl ?? null);
     setHairBack(preset?.hairBackUrl ?? null);
-
-    // Apply extracted color
     setHairColor(extractedColor);
-
-    // Store recommendation for PresetGrid badges
     setHairRecommendation(recommendation);
 
     setResult({
@@ -136,6 +71,90 @@ export function ReferenceModelUpload() {
     );
   }
 
+  const processImageFile = useCallback(
+    async (file: File) => {
+      setStatus('loading');
+      setResult(null);
+      setErrorMsg('');
+
+      try {
+        const recommendation = await recommendHairPresetFromImage(file);
+
+        if (!recommendation) {
+          setStatus('error');
+          setErrorMsg('이미지에서 헤어 색상을 감지하지 못했습니다');
+          return;
+        }
+
+        applyRecommendation(recommendation);
+        setStatus('success');
+      } catch (err) {
+        console.error('[ReferenceUpload] Image processing failed:', err);
+        setStatus('error');
+        setErrorMsg('이미지 분석에 실패했습니다');
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setHairFront, setHairBack, setHairColor, setHairRecommendation],
+  );
+
+  const processModelFile = useCallback(
+    async (file: File) => {
+      setStatus('loading');
+      setResult(null);
+      setErrorMsg('');
+
+      const blobUrl = URL.createObjectURL(file);
+
+      try {
+        const vrm = await loadVRM(blobUrl);
+        const materials = detectMaterials(vrm);
+        const recommendation = recommendHairPreset(vrm, materials);
+
+        // Dispose VRM scene
+        vrm.scene.traverse((obj) => {
+          const mesh = obj as THREE.Mesh;
+          if (mesh.isMesh) {
+            mesh.geometry?.dispose();
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            mats.forEach((m) => m?.dispose());
+          }
+        });
+
+        if (!recommendation) {
+          setStatus('error');
+          setErrorMsg('헤어 머티리얼을 감지하지 못했습니다');
+          return;
+        }
+
+        applyRecommendation(recommendation);
+        setStatus('success');
+      } catch (err) {
+        console.error('[ReferenceUpload] Model processing failed:', err);
+        setStatus('error');
+        setErrorMsg('파일 로드에 실패했습니다');
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setHairFront, setHairBack, setHairColor, setHairRecommendation],
+  );
+
+  const processFile = useCallback(
+    async (file: File) => {
+      if (isImageFile(file.name)) {
+        return processImageFile(file);
+      }
+      if (isModelFile(file.name)) {
+        return processModelFile(file);
+      }
+      setStatus('error');
+      setErrorMsg('지원하지 않는 파일 형식입니다 (이미지 또는 VRM/GLB)');
+    },
+    [processImageFile, processModelFile],
+  );
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -144,23 +163,24 @@ export function ReferenceModelUpload() {
       const file = e.dataTransfer.files[0];
       if (file) processFile(file);
     },
-    [processFile]
+    [processFile],
   );
 
   const handleFileInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) processFile(file);
-      // Reset so the same file can be re-uploaded
       e.target.value = '';
     },
-    [processFile]
+    [processFile],
   );
+
+  const acceptAttr = ACCEPTED_EXTENSIONS.join(',');
 
   return (
     <div className="space-y-2">
       <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-        참조 모델 업로드
+        레퍼런스 업로드
       </label>
 
       {/* Drop zone */}
@@ -186,7 +206,7 @@ export function ReferenceModelUpload() {
         <input
           ref={inputRef}
           type="file"
-          accept=".vrm,.glb"
+          accept={acceptAttr}
           onChange={handleFileInput}
           className="hidden"
         />
@@ -198,9 +218,15 @@ export function ReferenceModelUpload() {
           </>
         ) : (
           <>
-            <Upload className="w-5 h-5 text-muted-foreground/50" />
+            <div className="flex items-center gap-1.5">
+              <ImageIcon className="w-4 h-4 text-muted-foreground/50" />
+              <Upload className="w-4 h-4 text-muted-foreground/50" />
+            </div>
             <span className="text-[11px] text-muted-foreground">
-              VRM/GLB 파일로 헤어 자동 매칭
+              이미지 또는 VRM/GLB로 헤어 자동 매칭
+            </span>
+            <span className="text-[9px] text-muted-foreground/50">
+              PNG, JPG, WebP, VRM, GLB
             </span>
           </>
         )}

@@ -428,3 +428,39 @@ export function matchHairPresets(features: VRMHairFeatures): HairRecommendation 
     extractedColor: features.dominantColor,
   };
 }
+
+/**
+ * Match hair presets using color only (for image-based input).
+ * No geometry data is available from images, so scoring is 100% color.
+ */
+export function matchHairPresetsFromColor(
+  dominantColor: string,
+  hsl: HSL,
+): HairRecommendation {
+  const results: HairMatchResult[] = PRESET_METADATA.map((preset) => {
+    const cScore = colorSimilarity(hsl, preset.hsl);
+    return {
+      presetId: preset.presetId,
+      score: cScore,
+      colorScore: cScore,
+      geometryScore: 0.5, // neutral — no geometry data
+    };
+  });
+
+  results.sort((a, b) => b.score - a.score);
+
+  const bestScore = results[0].score;
+  let confidence: MatchConfidence;
+  if (bestScore > 0.7) confidence = 'high';
+  else if (bestScore > 0.4) confidence = 'medium';
+  else confidence = 'low';
+
+  console.log(`[HairMatch/Image] Best match: ${results[0].presetId} (color=${bestScore.toFixed(3)}, confidence: ${confidence})`);
+
+  return {
+    bestMatch: results[0],
+    allResults: results,
+    confidence,
+    extractedColor: dominantColor,
+  };
+}
