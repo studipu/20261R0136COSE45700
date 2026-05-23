@@ -15,7 +15,7 @@ import numpy as np
 
 from .geometry import (
     _EPS,
-    _map_signed, _map_01,
+    _map_signed, _map_signed_asym, _map_01,
     _angle_at,
     _lid_flatness,
     _compute_depth_features,
@@ -183,7 +183,7 @@ def compute_avatar_keys(
     if _raw_out is not None: _raw_out["Brow_Dist"] = _rv
 
     _rv = ((R_center[1] - R_brow_mid[1]) + (L_center[1] - L_brow_mid[1])) / 2.0 / face_scale
-    Brow_Height = _map_signed(_rv, 0.2079, 0.3612)
+    Brow_Height = _map_signed(_rv, 0.1950, 0.3920)
     if _raw_out is not None: _raw_out["Brow_Height"] = _rv
 
     # outer_y - inner_y: same semantic direction for both brows (mirror-sign fix)
@@ -220,11 +220,13 @@ def compute_avatar_keys(
     M_corner_mid = mid(M_L, M_R)
 
     _rv = d(M_L, M_R) / face_scale
-    Mouth_Width = _map_signed(_rv, 0.2170, 0.3138)
+    Mouth_Width = _map_signed_asym(
+        _rv, 0.1980, 0.3520, pivot=0.48, gamma_lo=0.72, gamma_hi=1.75
+    )
     if _raw_out is not None: _raw_out["Mouth_Width"] = _rv
 
     _rv = float(M_corner_mid[1] - eye_center[1]) / face_scale
-    Mouth_Height = -_map_signed(_rv, 0.2962, 0.3746)
+    Mouth_Height = -_map_signed(_rv, 0.2615, 0.3920)
     if _raw_out is not None: _raw_out["Mouth_Height"] = _rv
 
     _rv = (float(M_C[1]) - float((M_L[1] + M_R[1]) / 2.0)) / face_scale
