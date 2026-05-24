@@ -12,7 +12,7 @@ ADF keypoint layout (28 points):
 
 Public API:
     extract_features(image)            -> FaceFeatureVector | None
-    extract_features_full(image)       -> (FaceFeatureVector | None, dict | None)
+    extract_features_full(image)       -> (FaceFeatureVector | None, dict | None, dict)
     visualize_landmarks(image)         -> PIL.Image
     compute_avatar_keys(kps, ...)      -> dict[str, float]   (re-exported)
 """
@@ -91,15 +91,15 @@ def extract_features(
     image,
     min_confidence: float = 0.4,
 ) -> "FaceFeatureVector | None":
-    fv, _ = extract_features_full(image, min_confidence)
+    fv, *_ = extract_features_full(image, min_confidence)
     return fv
 
 
 def extract_features_full(
     image,
     min_confidence: float = 0.4,
-) -> "tuple[FaceFeatureVector | None, dict[str, float] | None]":
-    """Run ADF once; return (FaceFeatureVector, avatar_keys dict)."""
+) -> "tuple[FaceFeatureVector | None, dict[str, float] | None, dict]":
+    """Run ADF once; return (FaceFeatureVector, avatar_keys dict, raw debug dict)."""
     img_bgr        = _to_bgr(image)
     img_path, _tmp = _ensure_path(image, img_bgr)
     groups, _, kps_raw = _run_adf(img_bgr, img_path)

@@ -83,15 +83,22 @@ def cmd_batch_run(args):
     results = []
 
     for image_path in images:
-        name = Path(image_path).stem
+        image_file = Path(image_path)
+        name = _batch_output_name(image_file)
         out_dir = str(Path(args.output) / name)
+        glb_path = Path(out_dir) / "avatar.glb"
+        reuse_glb = glb_path.is_file()
         print(f"\n[BatchRun] {image_path} -> {out_dir}")
+        if reuse_glb:
+            print(f"[BatchRun] reusing GLB: {glb_path}")
         try:
             result = run_pipeline(
                 image_path=image_path,
                 output_dir=out_dir,
                 provider=args.provider,
                 api_key=args.api_key,
+                skip_3d=reuse_glb,
+                existing_glb=str(glb_path) if reuse_glb else None,
             )
             status = result.get("status", "ok")
             batch_row = {"image": image_path, **result}
@@ -324,6 +331,18 @@ def _resolve_image_args(image_args: list[str]) -> list[str]:
         resolved.append(_resolve_image_arg(image_arg))
 
     return resolved
+
+
+def _batch_output_name(image_path: Path) -> str:
+    """
+    Build a collision-free batch output folder name.
+
+    Examples:
+      004.png  -> 004_png
+      004.jpeg -> 004_jpeg
+    """
+    suffix = image_path.suffix.lower().lstrip(".")
+    return f"{image_path.stem}_{suffix}" if suffix else image_path.stem
 
 
 def main():
