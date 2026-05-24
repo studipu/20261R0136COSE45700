@@ -18,6 +18,26 @@ def _map_signed(x: float, lo: float, hi: float) -> float:
     return float(max(-1.0, min(1.0, 2.0 * (x - lo) / (hi - lo + _EPS) - 1.0)))
 
 
+def _map_signed_asym(
+    x: float,
+    lo: float,
+    hi: float,
+    pivot: float = 0.5,
+    gamma_lo: float = 1.0,
+    gamma_hi: float = 1.0,
+) -> float:
+    """Asymmetric nonlinear normalization to [-1, 1] over [lo, hi]."""
+    t = max(0.0, min(1.0, (x - lo) / (hi - lo + _EPS)))
+    pivot = max(_EPS, min(1.0 - _EPS, pivot))
+
+    if t <= pivot:
+        u = 0.5 * ((t / pivot) ** gamma_lo)
+    else:
+        u = 0.5 + 0.5 * (((t - pivot) / (1.0 - pivot + _EPS)) ** gamma_hi)
+
+    return float(max(-1.0, min(1.0, 2.0 * u - 1.0)))
+
+
 def _map_01(x: float, lo: float, hi: float) -> float:
     """Normalize x to [0, 1] given [lo, hi] range."""
     return float(max(0.0, min(1.0, (x - lo) / (hi - lo + _EPS))))

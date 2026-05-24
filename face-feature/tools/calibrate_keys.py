@@ -61,6 +61,15 @@ OBSERVE_KEYS = [
 ALL_RAW_KEYS = list(SIGNED_KEYS) + list(MAP01_KEYS) + OBSERVE_KEYS
 
 
+def _coerce_raw_value(value):
+    """Extract a numeric raw value from debug payloads."""
+    if isinstance(value, dict):
+        value = value.get("value")
+    if isinstance(value, (int, float, np.floating)):
+        return float(value)
+    return None
+
+
 def find_images(root: Path) -> list[Path]:
     exts = {".png", ".jpg", ".jpeg"}
     images = []
@@ -141,10 +150,10 @@ def main():
 
         log(f"  OK    {label}")
         for k in ALL_RAW_KEYS:
-            v = raw.get(k)
-            if v is not None:
-                collected[k].append(v)
-                log(f"          {k:<22} {v:+.4f}")
+            raw_value = _coerce_raw_value(raw.get(k))
+            if raw_value is not None:
+                collected[k].append(raw_value)
+                log(f"          {k:<22} {raw_value:+.4f}")
 
     log()
     log(f"Success: {len(successes) + len(images) - len(failures)}/{len(images)}  "
