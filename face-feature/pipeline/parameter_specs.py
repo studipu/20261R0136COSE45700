@@ -61,8 +61,8 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     ),
     "Eye_Height": _spec(
         value_range=(-1.0, 1.0), domain="eye",
-        source="FaceFeatureVector", feature="eye_height_ratio", enabled=True,
-        description="Eye vertical position (eye-center y from brow_top / face_h).",
+        source="ADF landmarks", feature="eye_to_chin_ratio", enabled=True,
+        description="Eye vertical position: distance from eye center to chin / face scale.",
     ),
     "Eye_Dist": _spec(
         value_range=(-1.0, 1.0), domain="eye",
@@ -82,7 +82,7 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     "Eye_FrontFlat": _spec(
         value_range=(0.0, 1.0), domain="eye",
         source="FaceFeatureVector", feature="eye_front_flat", enabled=True,
-        description="Flatness of inner half of upper eyelid [0,1].",
+        description="Inner eye-corner curve relaxation proxy: inner upper/lower lid gap / eye width.",
     ),
     "Eye_TailHeight": _spec(
         value_range=(-1.0, 1.0), domain="eye",
@@ -111,13 +111,13 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     ),
     "Eye_PupilWidth": _spec(
         value_range=(-1.0, 1.0), domain="eye",
-        source="pupil_detector", feature="pupil_w_raw", enabled=True,
-        description="Iris diameter / eye_w — OpenCV HoughCircles on eye ROI.",
+        source="Eye_WidthV proxy", feature="eye_width_v", enabled=True,
+        description="Pupil width proxy: intentionally reuses Eye_WidthV because ADF cannot measure iris size reliably.",
     ),
     "Eye_PupilWidthV": _spec(
         value_range=(-1.0, 1.0), domain="eye",
-        source="pupil_detector", feature="pupil_h_raw", enabled=True,
-        description="Iris diameter / eye_h — HoughCircles vertical radius; clips to 1.0 when overestimated.",
+        source="Eye_WidthV proxy", feature="eye_width_v", enabled=True,
+        description="Pupil height proxy: intentionally reuses Eye_WidthV because ADF cannot measure iris size reliably.",
     ),
     # ── Brow ──────────────────────────────────────────────────────────────
     "Brow_Dist": _spec(
@@ -147,8 +147,8 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     # ── Nose ──────────────────────────────────────────────────────────────
     "Nose_Height": _spec(
         value_range=(-1.0, 1.0), domain="nose",
-        source="FaceFeatureVector", feature="nose_height_ratio", enabled=True,
-        description="Nose length (nose_tip_y − eye_bottom_y) / face_h.",
+        source="renderer/front_depth", feature="nose_protrusion_depth", enabled=True,
+        description="Depth-based nose height/protrusion from front render depth; defaults when depth is unavailable.",
     ),
     "Nose_Width": _spec(
         value_range=(0.0, 1.0), domain="nose",
@@ -157,7 +157,7 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     "Nose_UnderNose": _spec(
         value_range=(-1.0, 1.0), domain="nose",
         source="FaceFeatureVector", feature="nose_under_nose_ratio", enabled=True,
-        description="Philtrum length: (mouth_top_y − nose_tip_y) / face_h.",
+        description="Nose-to-upper-lip distance proxy: (mouth_top_y - nose_tip_y) / face_scale.",
     ),
     # ── Mouth ─────────────────────────────────────────────────────────────
     "Mouth_Width": _spec(
@@ -168,7 +168,7 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     "Mouth_Height": _spec(
         value_range=(-1.0, 1.0), domain="mouth",
         source="FaceFeatureVector", feature="mouth_height_ratio", enabled=True,
-        description="Mouth-center y from brow_top / face_h.",
+        description="Mouth vertical position relative to eye center; higher value means mouth is higher/closer to eyes.",
     ),
     "Mouth_Corner": _spec(
         value_range=(-1.0, 1.0), domain="mouth",
@@ -178,23 +178,23 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     # ── Face ──────────────────────────────────────────────────────────────
     "Face_JawLine": _spec(
         value_range=(0.0, 1.0), domain="face",
-        source="FaceFeatureVector", feature="jaw_width_ratio", enabled=True,
-        description="Jaw width from face contour / face_w.",
+        source="ADF landmarks", feature="jawline_sharpness_composite", enabled=True,
+        description="Jawline sharpness/V-line strength from chin angle, chin width, and chin depth.",
     ),
     "Face_Cheek": _spec(
         value_range=(0.0, 1.0), domain="face",
-        source="renderer/depth", feature="side_cheek_raw", enabled=True,
-        description="Cheek prominence from side-view depth map (left/right render); falls back to 2D contour ratio.",
+        source="renderer/side_depth or adf/2d_proxy", feature="cheek_prominence_raw", enabled=True,
+        description="Cheek fullness: side-depth cheek prominence when available; otherwise 2D contour proxy.",
     ),
     "Face_Roundness": _spec(
         value_range=(0.0, 1.0), domain="face",
-        source="FaceFeatureVector", feature="face_width_height_ratio", enabled=True,
-        description="Face roundness: face_w / face_h.",
+        source="ADF landmarks", feature="lower_face_roundness_composite", enabled=True,
+        description="Lower-face roundness composite from face width/height, chin angle, and inverse chin depth.",
     ),
     "Face_ChinWidth": _spec(
         value_range=(0.0, 1.0), domain="face",
-        source="FaceFeatureVector", feature="jaw_width_ratio", enabled=True,
-        description="Chin width proxied from jaw contour / face_w.",
+        source="ADF landmarks", feature="chin_width_ratio", enabled=True,
+        description="Chin/jaw width ratio: F1-F3 jaw span divided by F0-F4 face width.",
     ),
 }
 

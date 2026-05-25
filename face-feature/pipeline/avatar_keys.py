@@ -2,15 +2,15 @@
 Avatar key computation — ADF 28-pt landmarks → 29 Key_IDs.
 
 All keys are normalized to [-1, 1] or [0, 1] via _map_signed / _map_01.
-lo/hi calibration ranges were derived from 76 images (38 input + 38 GLB renders, p10–p90 percentile).
+lo/hi calibration ranges use curated valid samples with min/max plus a small margin.
 
 Keys with structural limitations (fixed/proxy values):
   Eye_TopLidDown / Eye_LowerLidUp : proxy (ADF 3-pt lid insufficient)
-  Eye_PupilWidth / Eye_PupilWidthV: eye_h/eye_w ratio (iris ≈ eye height for anime)
+  Eye_PupilWidth / Eye_PupilWidthV: Eye_WidthV proxy (iris size is not reliable in ADF)
   Brow_WidthV                     : 0.0   (no brow thickness in ADF)
   Nose_Width                      : 0.5   (no ala landmarks in ADF)
   Nose_Height                     : depth-based only (renders); 0.0 default for 2D input
-  Face_Cheek                      : 0.0 when no side depth available
+  Face_Cheek                      : 2D contour proxy; side depth overrides it in Stage 4
 """
 
 from __future__ import annotations
@@ -29,26 +29,36 @@ from .geometry import (
 # ── Calibration ranges ────────────────────────────────────────────────────────
 # Single source of truth — imported by calibrate_keys.py / calibrate_keys_front_render.py
 SIGNED_CALIBRATION = {
-    "Eye_Width":       (0.2181, 0.2697),
-    "Eye_WidthV":      (0.0959, 0.2186),
-    "Eye_Height":      (0.6171, 0.8037),
-    "Eye_Dist":        (0.3288, 0.3907),
-    "Eye_FrontHeight": (-0.1293, 0.0660),
-    "Eye_TailHeight":  (-0.0660, 0.1293),
-    "Brow_Dist":       (0.2216, 0.4411),
-    "Brow_Height":     (0.8218, 1.0143),
-    "Brow_Width":      (0.2192, 0.3801),
-    "Nose_Height":     (0.0055, 0.1006),   # depth-based (renders only)
-    "Nose_UnderNose":  (0.1274, 0.1991),
-    "Mouth_Width":     (0.2426, 0.4331),
-    "Mouth_Height":    (0.2809, 0.4654),
-    "Mouth_Corner":    (0.0040, 0.0663),
+    "Eye_Width":       (0.2065, 0.2888),
+    "Eye_WidthV":      (0.0149, 0.2407),
+    "Eye_Height":      (0.4874, 0.8451),
+    "Eye_Dist":        (0.3110, 0.4119),
+    "Eye_Rot":         (-0.1731, 0.1461),
+    "Eye_FrontHeight": (-0.2306, 0.1219),
+    "Eye_TailHeight":  (-0.1219, 0.2306),
+    "Eye_PupilWidth":  (0.0149, 0.2407),   # proxy = Eye_WidthV
+    "Eye_PupilWidthV": (0.0149, 0.2407),   # proxy = Eye_WidthV
+    "Brow_Dist":       (0.1718, 0.5145),
+    "Brow_Height":     (0.7209, 1.0771),
+    "Brow_Width":      (0.1860, 0.3925),
+    "Brow_Rot":        (-0.3266, 0.2589),
+    "Nose_Height":     (-0.0172, 0.1440),  # depth-based (renders only)
+    "Nose_UnderNose":  (0.0979, 0.2109),
+    "Mouth_Width":     (0.1581, 0.4615),
+    "Mouth_Height":    (0.2488, 0.5108),
+    "Mouth_Corner":    (-0.0294, 0.1035),
 }
 
 MAP01_CALIBRATION = {
-    "Face_Cheek":     (0.1992, 0.2868),
-    "Face_ChinWidth": (0.7132, 0.8008),
-    "Eye_FrontFlat":  (0.1920, 0.5562),    # inner gap / eye_width ratio
+    "Face_Cheek":       (0.1605, 0.3250),
+    "Face_ChinWidth":   (0.6750, 0.8395),
+    "Face_JawLine":     (0.1736, 0.7445),
+    "Face_Roundness":   (0.0650, 0.7351),
+    "Eye_FrontFlat":    (-0.0166, 0.6351),  # inner gap / eye_width ratio
+    "Eye_TopLidFlat":   (-0.0053, 0.4417),
+    "Eye_LowerLidFlat": (-0.0270, 0.8230),
+    "Eye_TopLidDown":   (-0.0376, 1.0010),  # raw = opening (before inversion)
+    "Eye_LowerLidUp":   (-0.0376, 1.0010),  # proxy = Eye_TopLidDown
 }
 
 _SC = SIGNED_CALIBRATION
@@ -127,10 +137,8 @@ def compute_avatar_keys(
     Eye_WidthV = _map_signed(_rv, *_SC["Eye_WidthV"])
     if _raw_out is not None: _raw_out["Eye_WidthV"] = _rv
 
-    brow_mid_y = float((p(6)[1] + p(9)[1]) / 2.0)
     chin_y = float(F2[1])
-    eye_frac = (float(eye_center[1]) - brow_mid_y) / max(chin_y - brow_mid_y, _EPS)
-    _rv = 1.0 - eye_frac
+    _rv = (chin_y - float(eye_center[1])) / face_scale
     Eye_Height = _map_signed(_rv, *_SC["Eye_Height"])
     if _raw_out is not None: _raw_out["Eye_Height"] = _rv
 
@@ -195,8 +203,9 @@ def compute_avatar_keys(
     if _raw_out is not None: _raw_out["Eye_TopLidDown"] = opening
     Eye_TopLidDown = float(max(0.0, min(1.0, (0.75 - opening) / 0.50)))
     Eye_LowerLidUp = Eye_TopLidDown
+    if _raw_out is not None: _raw_out["Eye_LowerLidUp"] = opening
 
-    # Eye_PupilWidth/V: radius 불신뢰 → Eye_WidthV proxy 사용
+    # Eye_PupilWidth/V: radius is unreliable, so use Eye_WidthV as the intentional proxy.
     Eye_PupilWidth  = Eye_WidthV
     Eye_PupilWidthV = Eye_WidthV
     if _raw_out is not None:
@@ -274,21 +283,32 @@ def compute_avatar_keys(
     chin_depth_ratio = chin_depth / max(face_width, _EPS)
     width_height_ratio = face_width / max(lower_face_height, _EPS)
 
-    angle_score = float(max(0.0, min(1.0, (130.0 - chin_angle)      / (130.0 - 60.0))))
-    width_score = float(max(0.0, min(1.0, (0.55 - chin_width_ratio) / (0.55 - 0.25))))
+    # 애니 캐릭터 실제 범위 반영: chin_angle 103-121도, chin_width 0.65-0.80
+    angle_score = float(max(0.0, min(1.0, (130.0 - chin_angle)      / (130.0 - 80.0))))
+    width_score = float(max(0.0, min(1.0, (0.85 - chin_width_ratio) / (0.85 - 0.65))))
     depth_score = float(max(0.0, min(1.0, (chin_depth_ratio - 0.08) / (0.25 - 0.08))))
-    Face_JawLine = float(max(0.0, min(1.0,
-        0.5 * angle_score + 0.3 * width_score + 0.2 * depth_score
-    )))
+    if depth is None:
+        # 2D: depth 항 제외, 나머지 두 항으로 정규화
+        Face_JawLine = float(max(0.0, min(1.0,
+            (0.5 * angle_score + 0.3 * width_score) / 0.80
+        )))
+    else:
+        Face_JawLine = float(max(0.0, min(1.0,
+            0.5 * angle_score + 0.3 * width_score + 0.2 * depth_score
+        )))
 
     _rv = float((face_width - jaw_width) / max(face_width, _EPS))
     Face_Cheek = _map_01(_rv, *_MC["Face_Cheek"])
     if _raw_out is not None: _raw_out["Face_Cheek"] = _rv
 
-    _r_wh = _map_01(width_height_ratio, 1.0, 1.8)
+    _r_wh = _map_01(width_height_ratio, 1.5, 2.5)
     _r_ca = _map_01(chin_angle, 80.0, 140.0)
     _r_cd = 1.0 - _map_01(chin_depth_ratio, 0.08, 0.25)
-    Face_Roundness = float(max(0.0, min(1.0, 0.45 * _r_wh + 0.35 * _r_ca + 0.20 * _r_cd)))
+    if depth is None:
+        # 2D: depth 항 제외, 나머지 두 항으로 정규화
+        Face_Roundness = float(max(0.0, min(1.0, (0.45 * _r_wh + 0.35 * _r_ca) / 0.80)))
+    else:
+        Face_Roundness = float(max(0.0, min(1.0, 0.45 * _r_wh + 0.35 * _r_ca + 0.20 * _r_cd)))
 
     _rv = chin_width_ratio
     Face_ChinWidth = _map_01(_rv, *_MC["Face_ChinWidth"])

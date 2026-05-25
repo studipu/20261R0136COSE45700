@@ -127,7 +127,7 @@ def extract_features_with_pupils(
     """
     feature_extractor.extract_features_full의 drop-in 대체.
     ADF 검출 + OpenCV 눈동자 검출을 한 번에 실행.
-    Eye_PupilWidth / Eye_PupilWidthV가 실측값으로 채워진다.
+    Eye_TopLidDown can use OpenCV pupil center; Eye_PupilWidth/V remain Eye_WidthV proxies.
     """
     img_bgr        = _to_bgr(image)
     img_path, _tmp = _ensure_path(image, img_bgr)
@@ -161,12 +161,12 @@ def extract_features_with_pupils(
     manual = detect_pupils(img_bgr, kps_raw)
     raw_out: dict = {}
     avatar_keys = compute_avatar_keys(kps_raw, manual=manual, _raw_out=raw_out, depth=depth, img_shape=img_bgr.shape[:2])
+    face_cheek_2d_raw = raw_out.get("Face_Cheek")
 
     if _side_cheek_raw is not None:
         avatar_keys["Face_Cheek"] = _map_01(_side_cheek_raw, 0.25, 0.80)
         raw_out["Face_Cheek"] = {"value": _side_cheek_raw, "source": "renderer/depth"}
     else:
-        avatar_keys["Face_Cheek"] = 0.0
-        raw_out["Face_Cheek"] = {"value": None, "source": "unavailable"}
+        raw_out["Face_Cheek"] = {"value": face_cheek_2d_raw, "source": "adf/2d_proxy"}
 
     return fv, avatar_keys, raw_out
