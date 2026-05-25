@@ -71,6 +71,7 @@ def _detect_pupil_one(img_bgr: np.ndarray, upper_kps: list, lower_kps: list, pad
     dark = cv2.morphologyEx(dark, cv2.MORPH_OPEN,
                             cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
     contours, _ = cv2.findContours(dark, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    max_r_allowed = min(eye_w, eye_h) * 0.55  # 눈 크기의 55% 이상이면 오검출
     if contours:
         candidates = []
         for cnt in contours:
@@ -78,19 +79,17 @@ def _detect_pupil_one(img_bgr: np.ndarray, upper_kps: list, lower_kps: list, pad
             if M["m00"] < 4:
                 continue
             cx_r, cy_r = M["m10"] / M["m00"], M["m01"] / M["m00"]
-            # eye bbox 안에 중심이 있는 것만
             if (x1 - rx1) <= cx_r <= (x2 - rx1) and (y1 - ry1) <= cy_r <= (y2 - ry1):
                 candidates.append((cv2.contourArea(cnt), cx_r, cy_r, cnt))
         if candidates:
             _, cx_r, cy_r, cnt = max(candidates, key=lambda t: t[0])
             _, enc_r = cv2.minEnclosingCircle(cnt)
             r = float(enc_r) * 0.5
-            return _make_result(cx_r + rx1, cy_r + ry1, r)
+            if r <= max_r_allowed:
+                return _make_result(cx_r + rx1, cy_r + ry1, r)
 
-    # ── 3차: fallback — eye bbox 중심 ─────────────────────────────────────
-    cx, cy = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-    r = min(eye_w, eye_h) * 0.2
-    return _make_result(cx, cy, r)
+    # 검출 실패 — None 반환하여 compute_avatar_keys가 proxy로 fallback
+    return None
 
 
 def _make_result(cx, cy, r):
@@ -137,7 +136,7 @@ def extract_features_with_pupils(
         try: os.unlink(_tmp)
         except OSError: pass
     if groups is None:
-        return None, None
+        return None, None, None
 
     depth = None
     _side_cheek_raw = None
