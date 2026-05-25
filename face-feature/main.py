@@ -10,11 +10,31 @@ Examples:
     python main.py batch --images samples --save-json output/batch.json
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
+import os
 import sys
 from pathlib import Path
+
+
+def _load_env(path: str = ".env") -> None:
+    env_file = Path(path)
+    if not env_file.is_file():
+        return
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key = key.strip()
+        val = val.strip()
+        if key and key not in os.environ:
+            os.environ[key] = val
+
+_load_env()
 
 from pipeline import (
     FaceFeatureVector,
@@ -328,21 +348,20 @@ def _resolve_image_args(image_args: list[str]) -> list[str]:
                 for sample_dir in sample_dirs:
                     resolved.append(_resolve_image_arg(str(sample_dir)))
                 continue
+            # 일반 이미지 폴더: 파일 전체를 개별 입력으로
+            for img in sorted(
+                child for child in path.iterdir()
+                if child.is_file() and child.suffix.lower() in ALLOWED_IMAGE_SUFFIXES
+            ):
+                resolved.append(str(img))
+            continue
         resolved.append(_resolve_image_arg(image_arg))
 
     return resolved
 
 
 def _batch_output_name(image_path: Path) -> str:
-    """
-    Build a collision-free batch output folder name.
-
-    Examples:
-      004.png  -> 004_png
-      004.jpeg -> 004_jpeg
-    """
-    suffix = image_path.suffix.lower().lstrip(".")
-    return f"{image_path.stem}_{suffix}" if suffix else image_path.stem
+    return image_path.stem
 
 
 def main():
@@ -353,7 +372,7 @@ def main():
     p_run = sub.add_parser("run", help="run the full pipeline")
     p_run.add_argument("--image", required=True, help="image path or sample input directory")
     p_run.add_argument("--provider", default="varco", choices=["meshy", "varco"])
-    p_run.add_argument("--api-key", default="", dest="api_key")
+    p_run.add_argument("--api-key", default=os.environ.get("VARCO_API_KEY", ""), dest="api_key")
     p_run.add_argument("--skip-3d", action="store_true", dest="skip_3d")
     p_run.add_argument("--glb", default=None)
 
@@ -363,7 +382,7 @@ def main():
     p_brun = sub.add_parser("batch-run", help="run the full pipeline for many images")
     p_brun.add_argument("--images", nargs="+", required=True, help="image paths, sample input directories, or samples root")
     p_brun.add_argument("--provider", default="varco", choices=["meshy", "varco"])
-    p_brun.add_argument("--api-key", default="", dest="api_key")
+    p_brun.add_argument("--api-key", default=os.environ.get("VARCO_API_KEY", ""), dest="api_key")
 
     p_bat = sub.add_parser("batch", help="extract and compare features for many images")
     p_bat.add_argument("--images", nargs="+", required=True, help="image paths, sample input directories, or samples root")

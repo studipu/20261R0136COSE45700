@@ -17,6 +17,8 @@ Public API:
     compute_avatar_keys(kps, ...)      -> dict[str, float]   (re-exported)
 """
 
+from __future__ import annotations
+
 import os
 import tempfile
 import warnings
