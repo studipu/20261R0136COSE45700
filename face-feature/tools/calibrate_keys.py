@@ -13,6 +13,8 @@ Scans:
 Requires: ADF WSL server or ADF_SERVER_URL env set.
 """
 
+from __future__ import annotations
+
 import argparse
 import sys
 import os
@@ -23,30 +25,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pipeline.feature_extractor import _run_adf, _to_bgr, _ensure_path, compute_avatar_keys
+from pipeline.avatar_keys import SIGNED_CALIBRATION as SIGNED_KEYS, MAP01_CALIBRATION as MAP01_KEYS
 
-# ── Keys that use _map_signed(raw, lo, hi) → current lo/hi ──────────────────
-SIGNED_KEYS = {
-    "Eye_Width":       (0.16, 0.36),
-    "Eye_WidthV":      (0.04, 0.16),
-    "Eye_Height":      (0.05, 0.35),
-    "Eye_Dist":        (0.08, 0.28),
-    "Eye_FrontHeight": (-0.60, 0.60),
-    "Eye_TailHeight":  (-0.60, 0.60),
-    "Brow_Dist":       (0.10, 0.35),
-    "Brow_Height":     (0.03, 0.22),
-    "Brow_Width":      (0.10, 0.35),
-    "Nose_Height":     (0.25, 0.75),
-    "Nose_UnderNose":  (0.05, 0.35),
-    "Mouth_Width":     (0.10, 0.35),
-    "Mouth_Height":    (0.35, 0.75),   # raw = positive (mouth below eye)
-    "Mouth_Corner":    (-0.05, 0.05),
-}
-# Keys that use _map_01(raw, lo, hi)
-MAP01_KEYS = {
-    "Face_Cheek":     (0.15, 0.45),
-    "Face_ChinWidth": (0.25, 0.60),
-    "Eye_FrontFlat":  (40.0, 140.0),   # raw in degrees
-}
 # Keys with fixed formula (raw = already meaningful, just observe)
 OBSERVE_KEYS = [
     "Eye_Rot",         # raw = avg tilt degrees (/20 then clamp)
@@ -98,8 +78,17 @@ def extract_raw(image_path: Path) -> "dict | None":
             pass
     if groups is None or kps_raw is None:
         return None
+
+    # depth map이 있으면 로드 (output/*/renders/front.png 케이스)
+    depth = None
+    img_shape = None
+    depth_path = image_path.parent / "front_depth.npy"
+    if depth_path.is_file():
+        depth = np.load(str(depth_path))
+        img_shape = (img_bgr.shape[0], img_bgr.shape[1])
+
     raw_out: dict = {}
-    compute_avatar_keys(kps_raw, _raw_out=raw_out)
+    compute_avatar_keys(kps_raw, _raw_out=raw_out, depth=depth, img_shape=img_shape)
     return raw_out
 
 

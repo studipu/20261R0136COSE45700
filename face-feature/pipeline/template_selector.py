@@ -9,6 +9,8 @@ mature: 성인 비율, 디테일한 얼굴 (성숙/리얼 스타일)
       실제 VRoid 템플릿 3종을 렌더/추출한 후 여기에 반영 필요.
 """
 
+from __future__ import annotations
+
 import numpy as np
 from dataclasses import dataclass
 from .feature_extractor import FaceFeatureVector

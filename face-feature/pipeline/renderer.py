@@ -8,6 +8,8 @@ GLB를 pyrender로 멀티뷰 2D 이미지로 렌더링한다.
 출력 뷰: front, left, right, quarter(45°)
 """
 
+from __future__ import annotations
+
 import os
 import math
 import json
@@ -19,10 +21,9 @@ import pyrender
 
 
 VIEWS = {
-    "front":   {"yaw": 0,   "pitch": 0},
-    "left":    {"yaw": 90,  "pitch": 0},
-    "right":   {"yaw": -90, "pitch": 0},
-    "quarter": {"yaw": 45,  "pitch": 5},
+    "front": {"yaw": 0,   "pitch": 0},
+    "left":  {"yaw": 90,  "pitch": 0},
+    "right": {"yaw": -90, "pitch": 0},
 }
 
 RESOLUTION = (512, 512)

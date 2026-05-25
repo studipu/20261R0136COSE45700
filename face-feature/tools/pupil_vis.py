@@ -224,7 +224,7 @@ def run(image_path, out_dir="output_test"):
 
     manual = build_manual(r_pupil, l_pupil)
     if manual:
-        from pipeline.feature_extractor import compute_avatar_keys, _map_signed
+        from pipeline.feature_extractor import compute_avatar_keys
         keys = compute_avatar_keys(kps, manual=manual)
         print(f"  Eye_PupilWidth  = {keys['Eye_PupilWidth']:.4f}")
         print(f"  Eye_PupilWidthV = {keys['Eye_PupilWidthV']:.4f}")

@@ -149,7 +149,7 @@ def main():
     stem = Path(image_path).stem
 
     print(f"[Viz] extracting features from: {image_path}")
-    fv, avatar_keys = extract_features_full(image_path, min_confidence=args.min_confidence)
+    fv, avatar_keys, _ = extract_features_full(image_path, min_confidence=args.min_confidence)
 
     if avatar_keys is None:
         print("[Viz] ERROR: face not detected")

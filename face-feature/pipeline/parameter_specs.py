@@ -6,10 +6,13 @@ At runtime it is imported through parameter_mapper and contributes to
 avatar_parameters / parameter_debug written in pipeline_result.json.
 """
 
+from __future__ import annotations
+
 from collections.abc import Iterator
+from typing import Dict
 
 
-ParameterSpec = dict[str, object]
+ParameterSpec = Dict[str, object]
 
 
 def _spec(
