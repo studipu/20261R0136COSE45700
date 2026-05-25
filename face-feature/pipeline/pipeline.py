@@ -8,6 +8,8 @@ Stage 5: Select cute/slim/mature template
 Stage 6: Map initial slider values
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -154,10 +156,15 @@ def _stage2_generate_glb(
 
 
 def _stage3_render(glb_path: str, out: Path) -> tuple[dict, dict]:
+    render_dir = out / "renders"
+    expected = {k: render_dir / f"{k}.png" for k in ("front", "left", "right")}
+    if all(p.is_file() for p in expected.values()):
+        print("[Stage 3] renders exist, skipping re-render")
+        render_paths = {k: str(v) for k, v in expected.items()}
+        return {}, render_paths
     print("[Stage 3] rendering multiview images...")
-    render_dir = str(out / "renders")
-    renders = render_multiview(glb_path, render_dir)
-    render_paths = {k: str(Path(render_dir) / f"{k}.png") for k in renders}
+    renders = render_multiview(glb_path, str(render_dir))
+    render_paths = {k: str(render_dir / f"{k}.png") for k in renders}
     print(f"[Stage 3] render complete: {list(render_paths.keys())}")
     return renders, render_paths
 

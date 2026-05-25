@@ -41,3 +41,4 @@ ruld.md
 output/
 output_test/
 output_landmark_vis/
+tools/run_and_calibrate.py

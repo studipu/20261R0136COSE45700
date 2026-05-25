@@ -2,6 +2,8 @@
 Inspect pipeline output directories and write a summary CSV.
 """
 
+from __future__ import annotations
+
 import argparse
 import csv
 import json
