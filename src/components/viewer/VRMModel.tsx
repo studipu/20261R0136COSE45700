@@ -5,7 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import { useVRM } from '@/hooks/useVRM';
 import { useEditorStore } from '@/stores/editorStore';
 import { setBaseVRM } from '@/lib/vrm-ref';
-import { applyMaterialColor, applyMaterialProperty, detectMaterials } from '@/lib/vrm/materials';
+import { applyMaterialColor, applyMaterialProperty, applyMaterialTexture, detectMaterials } from '@/lib/vrm/materials';
 import type { DetectedMaterial } from '@/lib/vrm/materials';
 import type { VRM } from '@pixiv/three-vrm';
 import * as THREE from 'three';
@@ -29,6 +29,8 @@ export function VRMModel({ url, onLoaded }: VRMModelProps) {
   const prevMorphKeysRef = useRef<Set<string>>(new Set());
   // Track which slots are skin category
   const skinSlotsRef = useRef<Set<string>>(new Set());
+  // Track applied texture URLs to avoid reloading
+  const appliedTexturesRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     if (vrm) {
@@ -170,6 +172,16 @@ export function VRMModel({ url, onLoaded }: VRMModelProps) {
         }
         if (slot.opacity !== undefined) {
           applyMaterialProperty(currentVrm, slotName, 'opacity', slot.opacity as number);
+        }
+        // Apply texture if URL changed
+        const textureUrl = slot.textureUrl as string | undefined;
+        const prevUrl = appliedTexturesRef.current[slotName];
+        if (textureUrl && textureUrl !== prevUrl) {
+          applyMaterialTexture(currentVrm, slotName, textureUrl);
+          appliedTexturesRef.current[slotName] = textureUrl;
+        } else if (!textureUrl && prevUrl) {
+          // Texture removed — clear tracking (restore handled by removeMaterialTexture if needed)
+          delete appliedTexturesRef.current[slotName];
         }
       }
     }

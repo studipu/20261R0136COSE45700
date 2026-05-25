@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { MToonMaterial } from '@pixiv/three-vrm-materials-mtoon';
 import type { DetectedMaterial } from '@/lib/vrm/materials';
 import type { HSL } from './color-distance';
-import { hexToHsl, colorSimilarity } from './color-distance';
+import { hexToHsl, colorSimilarity, colorSimilarityLab } from './color-distance';
 import { PRESET_METADATA } from './preset-metadata';
 
 // ---- Types ----
@@ -432,13 +432,15 @@ export function matchHairPresets(features: VRMHairFeatures): HairRecommendation 
 /**
  * Match hair presets using color only (for image-based input).
  * No geometry data is available from images, so scoring is 100% color.
+ *
+ * Uses CIE Lab Delta E for perceptually uniform color comparison.
  */
 export function matchHairPresetsFromColor(
   dominantColor: string,
   hsl: HSL,
 ): HairRecommendation {
   const results: HairMatchResult[] = PRESET_METADATA.map((preset) => {
-    const cScore = colorSimilarity(hsl, preset.hsl);
+    const cScore = colorSimilarityLab(dominantColor, preset.dominantColor);
     return {
       presetId: preset.presetId,
       score: cScore,
@@ -455,12 +457,94 @@ export function matchHairPresetsFromColor(
   else if (bestScore > 0.4) confidence = 'medium';
   else confidence = 'low';
 
-  console.log(`[HairMatch/Image] Best match: ${results[0].presetId} (color=${bestScore.toFixed(3)}, confidence: ${confidence})`);
+  console.log(`[HairMatch/Image] === CIE Lab MATCHING (v4) ===`);
+  console.log(`[HairMatch/Image] Extracted color: ${dominantColor}`);
+  console.log(`[HairMatch/Image] Best match: ${results[0].presetId} (lab=${bestScore.toFixed(3)}, confidence: ${confidence})`);
+  console.log('[HairMatch/Image] All scores:', results.map((r) => `${r.presetId}=${r.score.toFixed(3)}`).join(', '));
 
   return {
     bestMatch: results[0],
     allResults: results,
     confidence,
     extractedColor: dominantColor,
+  };
+}
+
+/**
+ * Gemini feature-based hairstyle info for matching.
+ */
+export interface GeminiHairInfo {
+  hairStyle: string;   // e.g. 'long_straight', 'short_bob', 'ponytail', etc.
+  hairLength: string;  // e.g. 'short', 'medium', 'long', 'very_long'
+  hairColor?: number[]; // [R, G, B]
+}
+
+/**
+ * Match hair presets using Gemini-detected hairstyle + color.
+ *
+ * When all presets have similar colors (as is the case with our current library),
+ * hairstyle shape is the primary discriminator. Color is used as tiebreaker.
+ */
+export function matchHairPresetsFromGemini(
+  geminiHair: GeminiHairInfo,
+): HairRecommendation {
+  const { hairStyle, hairLength, hairColor } = geminiHair;
+
+  // Compute color from Gemini if available
+  let colorHex = '#785947'; // fallback to average preset color
+  if (hairColor && hairColor.length === 3) {
+    colorHex = '#' + hairColor.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('');
+  }
+
+  const results: HairMatchResult[] = PRESET_METADATA.map((preset) => {
+    // Style matching (primary): check if Gemini style matches preset keywords
+    const styleNorm = hairStyle.toLowerCase().replace(/[\s-]/g, '_');
+    const styleMatch = preset.styleKeywords.some((kw) => styleNorm.includes(kw) || kw.includes(styleNorm));
+    const styleScore = styleMatch ? 1.0 : 0.0;
+
+    // Length matching (secondary): exact match or adjacent
+    const lengthOrder = ['short', 'medium', 'long', 'very_long'];
+    const presetIdx = lengthOrder.indexOf(preset.lengthCategory);
+    const inputIdx = lengthOrder.indexOf(hairLength.toLowerCase());
+    let lengthScore = 0;
+    if (presetIdx >= 0 && inputIdx >= 0) {
+      const diff = Math.abs(presetIdx - inputIdx);
+      lengthScore = diff === 0 ? 1.0 : diff === 1 ? 0.5 : 0.0;
+    }
+
+    // Color matching (tiebreaker)
+    const colorScore = colorSimilarityLab(colorHex, preset.dominantColor);
+
+    // Weighted: style 60%, length 25%, color 15%
+    const score = 0.60 * styleScore + 0.25 * lengthScore + 0.15 * colorScore;
+
+    return {
+      presetId: preset.presetId,
+      score,
+      colorScore,
+      geometryScore: styleScore,
+    };
+  });
+
+  results.sort((a, b) => b.score - a.score);
+
+  const bestScore = results[0].score;
+  let confidence: MatchConfidence;
+  if (bestScore > 0.7) confidence = 'high';
+  else if (bestScore > 0.4) confidence = 'medium';
+  else confidence = 'low';
+
+  console.log(`[HairMatch/Gemini] === STYLE-BASED MATCHING ===`);
+  console.log(`[HairMatch/Gemini] Gemini detected: style=${hairStyle}, length=${hairLength}, color=${colorHex}`);
+  console.log(`[HairMatch/Gemini] Best match: ${results[0].presetId} (score=${bestScore.toFixed(3)}, confidence: ${confidence})`);
+  console.log('[HairMatch/Gemini] All scores:', results.map((r) =>
+    `${r.presetId}=${r.score.toFixed(3)} (style=${r.geometryScore.toFixed(2)}, color=${r.colorScore.toFixed(2)})`
+  ).join(', '));
+
+  return {
+    bestMatch: results[0],
+    allResults: results,
+    confidence,
+    extractedColor: colorHex,
   };
 }

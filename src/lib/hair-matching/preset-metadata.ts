@@ -15,6 +15,10 @@ export interface PresetMetadata {
   meshCount: number;   // front hair
   backVertexCount: number;
   backMeshCount: number;
+  /** Hairstyle keywords for Gemini-based matching */
+  styleKeywords: string[];
+  /** Hair length category */
+  lengthCategory: string;
 }
 
 /**
@@ -25,43 +29,53 @@ export interface PresetMetadata {
 const RAW_METADATA: Omit<PresetMetadata, 'hsl'>[] = [
   {
     presetId: 'hair-01',
-    dominantColor: '#2C222B', // dark brown/black
+    dominantColor: '#785947', // medium brown (sampled from rendered thumbnail)
     vertexCount: 115406,
     meshCount: 92,
     backVertexCount: 62353,
     backMeshCount: 92,
+    styleKeywords: ['long_straight', 'straight'],
+    lengthCategory: 'long',
   },
   {
     presetId: 'hair-02',
-    dominantColor: '#71635A', // medium brown
+    dominantColor: '#735544', // medium brown (sampled from rendered thumbnail)
     vertexCount: 105320,
     meshCount: 79,
     backVertexCount: 51847,
     backMeshCount: 79,
+    styleKeywords: ['short_bob', 'bob'],
+    lengthCategory: 'short',
   },
   {
     presetId: 'hair-03',
-    dominantColor: '#8D4A43', // auburn/reddish brown
+    dominantColor: '#705242', // medium brown (sampled from rendered thumbnail)
     vertexCount: 110524,
     meshCount: 62,
     backVertexCount: 57051,
     backMeshCount: 62,
+    styleKeywords: ['ponytail'],
+    lengthCategory: 'medium',
   },
   {
     presetId: 'hair-04',
-    dominantColor: '#91672C', // golden brown
+    dominantColor: '#775846', // medium brown (sampled from rendered thumbnail)
     vertexCount: 105892,
     meshCount: 40,
     backVertexCount: 52419,
     backMeshCount: 40,
+    styleKeywords: ['very_long_straight', 'long_straight', 'straight'],
+    lengthCategory: 'very_long',
   },
   {
     presetId: 'hair-05',
-    dominantColor: '#090806', // black
+    dominantColor: '#725443', // medium brown (sampled from rendered thumbnail)
     vertexCount: 98609,
     meshCount: 55,
     backVertexCount: 45136,
     backMeshCount: 55,
+    styleKeywords: ['short_braid', 'braid'],
+    lengthCategory: 'short',
   },
 ];
 

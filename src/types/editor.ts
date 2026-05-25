@@ -121,6 +121,7 @@ export interface EditorActions {
 
   // Pipeline
   applyPipelineResult: (params: Record<string, number>) => void;
+  applyTextureResult: (textures: Record<string, string>) => void;
 
   // Reset all
   resetAll: () => void;

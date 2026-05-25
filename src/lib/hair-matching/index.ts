@@ -2,14 +2,14 @@
  * Hair matching module - barrel export.
  */
 
-export { hexToHsl, colorSimilarity } from './color-distance';
+export { hexToHsl, colorSimilarity, colorSimilarityLab, hexToLab } from './color-distance';
 export type { HSL } from './color-distance';
 
 export { PRESET_METADATA, getPresetMetadataById } from './preset-metadata';
 export type { PresetMetadata } from './preset-metadata';
 
-export { extractVRMHairFeatures, matchHairPresets, matchHairPresetsFromColor } from './matcher';
-export type { VRMHairFeatures, HairMatchResult, HairRecommendation, MatchConfidence } from './matcher';
+export { extractVRMHairFeatures, matchHairPresets, matchHairPresetsFromColor, matchHairPresetsFromGemini } from './matcher';
+export type { VRMHairFeatures, HairMatchResult, HairRecommendation, MatchConfidence, GeminiHairInfo } from './matcher';
 
 export { extractHairColorFromImage } from './image-analyzer';
 export type { ImageHairColorResult } from './image-analyzer';

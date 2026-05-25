@@ -293,6 +293,90 @@ export function applyMaterialProperty(
   });
 }
 
+/** Pipeline output key → VRM material name regex */
+export const PIPELINE_TEXTURE_PATTERNS: Record<string, RegExp> = {
+  'BaseTexture_Generate_Face': /Face_00_SKIN/i,
+  'BaseTexture_Generate_Eyebrow': /FaceBrow|Brow_00_FACE/i,
+  'BaseTexture_Generate_Eyeline': /FaceEyeline|Eyeline_00_FACE/i,
+  'BaseTexture_Generate_Pupil': /EyeIris|Iris_00_EYE/i,
+  'BaseTexture_Static_EyeWhite': /EyeWhite/i,
+  'BaseTexture_Static_EyeHighlight': /EyeHighlight/i,
+  'BaseTexture_Static_MouthInside': /FaceMouth|Mouth_00_FACE/i,
+};
+
+/**
+ * Apply a texture (from data URL) to a named material slot on the VRM.
+ * Backs up the original map to `userData._origMap` for undo support.
+ */
+export function applyMaterialTexture(
+  vrm: VRM,
+  slotName: string,
+  dataUrl: string,
+): void {
+  const loader = new THREE.TextureLoader();
+  const newTexture = loader.load(dataUrl);
+  newTexture.flipY = false;
+  newTexture.colorSpace = THREE.SRGBColorSpace;
+
+  // Use regex pattern for pipeline texture keys, exact match otherwise
+  const pattern = PIPELINE_TEXTURE_PATTERNS[slotName];
+  const matches = (matName: string) =>
+    pattern ? pattern.test(matName) : matName === slotName;
+
+  vrm.scene.traverse((object) => {
+    const obj = object as unknown as { material?: THREE.Material | THREE.Material[] };
+    if (!obj.material) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of mats) {
+      if (!mat || !matches(mat.name)) continue;
+
+      const anyMat = mat as THREE.MeshStandardMaterial;
+
+      // Backup original texture for undo
+      if (!mat.userData._origMap) {
+        mat.userData._origMap = anyMat.map ?? null;
+      }
+
+      // Dispose previous non-original texture
+      if (anyMat.map && anyMat.map !== mat.userData._origMap) {
+        anyMat.map.dispose();
+      }
+
+      anyMat.map = newTexture;
+      anyMat.needsUpdate = true;
+    }
+  });
+}
+
+/**
+ * Remove applied texture from a slot, restoring the original.
+ */
+export function removeMaterialTexture(vrm: VRM, slotName: string): void {
+  const pattern = PIPELINE_TEXTURE_PATTERNS[slotName];
+  const matches = (matName: string) =>
+    pattern ? pattern.test(matName) : matName === slotName;
+
+  vrm.scene.traverse((object) => {
+    const obj = object as unknown as { material?: THREE.Material | THREE.Material[] };
+    if (!obj.material) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of mats) {
+      if (!mat || !matches(mat.name)) continue;
+
+      const anyMat = mat as THREE.MeshStandardMaterial;
+      if (mat.userData._origMap !== undefined) {
+        // Dispose current texture if it differs from original
+        if (anyMat.map && anyMat.map !== mat.userData._origMap) {
+          anyMat.map.dispose();
+        }
+        anyMat.map = mat.userData._origMap;
+        delete mat.userData._origMap;
+        anyMat.needsUpdate = true;
+      }
+    }
+  });
+}
+
 // Preset color palettes
 export const COLOR_PRESETS = {
   skin: [
