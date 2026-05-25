@@ -36,7 +36,7 @@ SIGNED_CALIBRATION = {
     "Eye_FrontHeight": (-0.1293, 0.0660),
     "Eye_TailHeight":  (-0.0660, 0.1293),
     "Brow_Dist":       (0.2216, 0.4411),
-    "Brow_Height":     (0.1873, 0.3555),
+    "Brow_Height":     (0.8218, 1.0143),
     "Brow_Width":      (0.2192, 0.3801),
     "Nose_Height":     (0.0055, 0.1006),   # depth-based (renders only)
     "Nose_UnderNose":  (0.1274, 0.1991),
@@ -214,7 +214,8 @@ def compute_avatar_keys(
     Brow_Dist = _map_signed(_rv, *_SC["Brow_Dist"])
     if _raw_out is not None: _raw_out["Brow_Dist"] = _rv
 
-    _rv = ((R_center[1] - R_brow_mid[1]) + (L_center[1] - L_brow_mid[1])) / 2.0 / face_scale
+    brow_mean_y = (float(R_brow_mid[1]) + float(L_brow_mid[1])) / 2.0
+    _rv = (float(F2[1]) - brow_mean_y) / face_scale
     Brow_Height = _map_signed(_rv, *_SC["Brow_Height"])
     if _raw_out is not None: _raw_out["Brow_Height"] = _rv
 
