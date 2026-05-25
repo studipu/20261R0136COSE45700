@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { ImagePlus, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 import { useEditorStore } from '@/stores/editorStore';
-import { MOCK_PIPELINE_RESULT } from '@/data/mock-pipeline-result';
 import type { PipelineResult, TemplateName } from '@/types/pipeline';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
@@ -88,15 +87,17 @@ export function FaceFeatureApply() {
       setErrorMsg('');
 
       try {
-        // TODO: Replace with actual API call when server is ready
-        // const formData = new FormData();
-        // formData.append('image', file);
-        // const response = await fetch('/api/pipeline/extract', { method: 'POST', body: formData });
-        // const pipeline: PipelineResult = await response.json();
-
-        // Simulate network delay for realistic UX
-        await new Promise((resolve) => setTimeout(resolve, 800));
-        const pipeline = MOCK_PIPELINE_RESULT;
+        const formData = new FormData();
+        formData.append('image', file);
+        const response = await fetch('/api/pipeline/face-keys', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `API error: ${response.status}`);
+        }
+        const pipeline: PipelineResult = await response.json();
 
         applyResult(pipeline);
       } catch (err) {

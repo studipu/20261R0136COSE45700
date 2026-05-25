@@ -58,6 +58,21 @@ export interface SliderInit {
 
 export type TemplateName = 'cute' | 'slim' | 'mature';
 
+/** Gemini visual hair preset matching result */
+export interface HairMatchResult {
+  matched_preset: string | null; // e.g. 'hair-01'
+  confidence: number;            // 0.0 ~ 1.0
+  reason: string;
+}
+
+/** Texture pipeline response — base64-encoded texture images keyed by slot name */
+export interface TextureResult {
+  textures: Record<string, string>; // slotName → base64 data URL
+  landmarks?: unknown;
+  features?: unknown;
+  hairMatch?: HairMatchResult | null;
+}
+
 /** Full pipeline response (run_pipeline output) */
 export interface PipelineResult {
   status: 'ok' | 'failed_stage4';

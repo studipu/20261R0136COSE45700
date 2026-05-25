@@ -4,13 +4,15 @@ import { useState, useCallback, useRef } from 'react';
 import { Upload, Loader2, CheckCircle2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { loadVRM } from '@/lib/vrm/loader';
 import { detectMaterials } from '@/lib/vrm/materials';
-import { recommendHairPreset, recommendHairPresetFromImage } from '@/lib/hair-matching';
+import { recommendHairPreset, recommendHairPresetFromImage, matchHairPresetsFromColor, hexToHsl } from '@/lib/hair-matching';
 import { PRESET_ITEMS } from '@/data/presets';
 import { useEditorStore } from '@/stores/editorStore';
 import type { HairRecommendation } from '@/types/editor';
+import type { TextureResult, HairMatchResult, PipelineResult } from '@/types/pipeline';
 import * as THREE from 'three';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
+type TextureStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface Result {
   presetName: string;
@@ -40,6 +42,7 @@ function isModelFile(name: string): boolean {
 
 export function ReferenceModelUpload() {
   const [status, setStatus] = useState<Status>('idle');
+  const [textureStatus, setTextureStatus] = useState<TextureStatus>('idle');
   const [result, setResult] = useState<Result | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -49,15 +52,25 @@ export function ReferenceModelUpload() {
   const setHairBack = useEditorStore((s) => s.setHairBack);
   const setHairColor = useEditorStore((s) => s.setHairColor);
   const setHairRecommendation = useEditorStore((s) => s.setHairRecommendation);
+  const applyTextureResult = useEditorStore((s) => s.applyTextureResult);
+  const applyPipelineResult = useEditorStore((s) => s.applyPipelineResult);
 
-  function applyRecommendation(recommendation: HairRecommendation) {
+  function applyRecommendation(recommendation: HairRecommendation, applyColor: boolean) {
     const { bestMatch, extractedColor, confidence } = recommendation;
 
     const preset = PRESET_ITEMS.find((p) => p.id === bestMatch.presetId);
 
     setHairFront(preset?.meshUrl ?? null);
     setHairBack(preset?.hairBackUrl ?? null);
-    setHairColor(extractedColor);
+
+    // VRM/GLB input: apply extracted color precisely
+    // Image input: keep preset's original texture (extracted color is approximate)
+    if (applyColor) {
+      setHairColor(extractedColor);
+    } else {
+      setHairColor(null);
+    }
+
     setHairRecommendation(recommendation);
 
     setResult({
@@ -67,35 +80,141 @@ export function ReferenceModelUpload() {
     });
 
     console.log(
-      `[ReferenceUpload] Applied: ${preset?.name} (confidence: ${confidence}, color: ${extractedColor})`
+      `[ReferenceUpload] Applied: ${preset?.name} (confidence: ${confidence}, color: ${extractedColor}, colorOverride: ${applyColor})`
     );
   }
 
   const processImageFile = useCallback(
     async (file: File) => {
       setStatus('loading');
+      setTextureStatus('loading');
       setResult(null);
       setErrorMsg('');
 
-      try {
-        const recommendation = await recommendHairPresetFromImage(file);
+      // Run hair matching (client) and texture pipeline (server) in parallel
+      const hairPromise = recommendHairPresetFromImage(file);
 
-        if (!recommendation) {
-          setStatus('error');
-          setErrorMsg('이미지에서 헤어 색상을 감지하지 못했습니다');
-          return;
+      const formData = new FormData();
+      formData.append('image', file);
+      const texturePromise = fetch('/api/pipeline/texture', {
+        method: 'POST',
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `Texture pipeline failed (${res.status})`);
+        }
+        return res.json() as Promise<TextureResult>;
+      });
+
+      // Face-keys extraction (runs in parallel with hair + texture)
+      const faceKeysFormData = new FormData();
+      faceKeysFormData.append('image', file);
+      const faceKeysPromise = fetch('/api/pipeline/face-keys', {
+        method: 'POST',
+        body: faceKeysFormData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `Face keys pipeline failed (${res.status})`);
+        }
+        return res.json() as Promise<PipelineResult>;
+      });
+
+      const [hairResult, textureResult, faceKeysResult] = await Promise.allSettled([
+        hairPromise,
+        texturePromise,
+        faceKeysPromise,
+      ]);
+
+      // Apply hair matching result (initial — may be refined by Gemini color below)
+      if (hairResult.status === 'fulfilled' && hairResult.value) {
+        applyRecommendation(hairResult.value, true);
+        setStatus('success');
+      } else {
+        const reason = hairResult.status === 'rejected'
+          ? hairResult.reason?.message
+          : '이미지에서 헤어 색상을 감지하지 못했습니다';
+        console.error('[ReferenceUpload] Hair matching failed:', reason);
+        setStatus('error');
+        setErrorMsg(reason ?? '헤어 매칭에 실패했습니다');
+      }
+
+      // Apply texture pipeline result
+      if (textureResult.status === 'fulfilled') {
+        const { textures, features } = textureResult.value;
+        if (textures && Object.keys(textures).length > 0) {
+          applyTextureResult(textures);
+          setTextureStatus('success');
+          console.log(`[ReferenceUpload] Textures applied: ${Object.keys(textures).join(', ')}`);
+        } else {
+          setTextureStatus('error');
+          console.warn('[ReferenceUpload] Texture pipeline returned no textures');
         }
 
-        applyRecommendation(recommendation);
-        setStatus('success');
-      } catch (err) {
-        console.error('[ReferenceUpload] Image processing failed:', err);
-        setStatus('error');
-        setErrorMsg('이미지 분석에 실패했습니다');
+        // Use Gemini visual hair match (direct image-to-thumbnail comparison)
+        const hairMatch = textureResult.value.hairMatch as HairMatchResult | null;
+        if (hairMatch?.matched_preset && hairMatch.confidence > 0.3) {
+          const preset = PRESET_ITEMS.find((p) => p.id === hairMatch.matched_preset);
+          if (preset) {
+            // Extract hair color from Gemini features for color override
+            const geminiFeatures = features as { general?: { hair_color?: number[] } } | null;
+            const hairColorRgb = geminiFeatures?.general?.hair_color;
+            let extractedColor = '#785947'; // default
+            if (hairColorRgb && Array.isArray(hairColorRgb) && hairColorRgb.length === 3) {
+              extractedColor = '#' + hairColorRgb.map((c: number) => Math.round(c).toString(16).padStart(2, '0')).join('');
+            }
+
+            setHairFront(preset.meshUrl ?? null);
+            setHairBack(preset.hairBackUrl ?? null);
+            setHairColor(extractedColor);
+            setHairRecommendation({
+              bestMatch: { presetId: hairMatch.matched_preset, score: hairMatch.confidence, colorScore: 0, geometryScore: hairMatch.confidence },
+              allResults: [],
+              confidence: hairMatch.confidence > 0.7 ? 'high' : hairMatch.confidence > 0.4 ? 'medium' : 'low',
+              extractedColor,
+            });
+            setResult({
+              presetName: preset.name ?? hairMatch.matched_preset,
+              confidence: hairMatch.confidence > 0.7 ? 'high' : hairMatch.confidence > 0.4 ? 'medium' : 'low',
+              extractedColor,
+            });
+            setStatus('success');
+            console.log(`[ReferenceUpload] Gemini visual match: ${hairMatch.matched_preset} (confidence: ${hairMatch.confidence}, reason: ${hairMatch.reason})`);
+          }
+        } else {
+          // Fallback: color-only re-matching
+          const geminiFeatures = features as { general?: { hair_color?: number[] } } | null;
+          const hairColorRgb = geminiFeatures?.general?.hair_color;
+          if (hairColorRgb && Array.isArray(hairColorRgb) && hairColorRgb.length === 3) {
+            const hex = '#' + hairColorRgb.map((c: number) => Math.round(c).toString(16).padStart(2, '0')).join('');
+            const hsl = hexToHsl(hex);
+            const refined = matchHairPresetsFromColor(hex, hsl);
+            console.log(`[ReferenceUpload] Fallback color match: ${hex}`);
+            applyRecommendation(refined, true);
+            setStatus('success');
+          }
+        }
+      } else {
+        setTextureStatus('error');
+        console.error('[ReferenceUpload] Texture pipeline failed:', textureResult.reason);
+      }
+
+      // Apply face-keys result (morph targets)
+      if (faceKeysResult.status === 'fulfilled') {
+        const faceKeys = faceKeysResult.value;
+        if (faceKeys.status === 'ok' && faceKeys.avatar_parameters) {
+          applyPipelineResult(faceKeys.avatar_parameters);
+          console.log(`[ReferenceUpload] Face keys applied: ${Object.keys(faceKeys.avatar_parameters).length} parameters (template: ${faceKeys.template})`);
+        } else {
+          console.warn('[ReferenceUpload] Face keys extraction failed:', faceKeys.error);
+        }
+      } else {
+        console.error('[ReferenceUpload] Face keys pipeline failed:', faceKeysResult.reason);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setHairFront, setHairBack, setHairColor, setHairRecommendation],
+    [setHairFront, setHairBack, setHairColor, setHairRecommendation, applyTextureResult, applyPipelineResult],
   );
 
   const processModelFile = useCallback(
@@ -127,7 +246,7 @@ export function ReferenceModelUpload() {
           return;
         }
 
-        applyRecommendation(recommendation);
+        applyRecommendation(recommendation, true);
         setStatus('success');
       } catch (err) {
         console.error('[ReferenceUpload] Model processing failed:', err);
@@ -194,11 +313,11 @@ export function ReferenceModelUpload() {
           e.preventDefault();
           setIsDragging(false);
         }}
-        onClick={() => status !== 'loading' && inputRef.current?.click()}
+        onClick={() => status !== 'loading' && textureStatus !== 'loading' && inputRef.current?.click()}
         className={`relative flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-lg border border-dashed cursor-pointer transition-all ${
           isDragging
             ? 'border-primary/60 bg-primary/5'
-            : status === 'loading'
+            : status === 'loading' || textureStatus === 'loading'
             ? 'border-border/30 bg-muted/10 cursor-wait'
             : 'border-border/40 bg-muted/10 hover:border-border/60 hover:bg-muted/20'
         }`}
@@ -211,10 +330,16 @@ export function ReferenceModelUpload() {
           className="hidden"
         />
 
-        {status === 'loading' ? (
+        {status === 'loading' || textureStatus === 'loading' ? (
           <>
             <Loader2 className="w-5 h-5 text-primary animate-spin" />
-            <span className="text-[11px] text-muted-foreground">분석 중...</span>
+            <span className="text-[11px] text-muted-foreground">
+              {status === 'loading' && textureStatus === 'loading'
+                ? '헤어 매칭 + 텍스처 생성 중...'
+                : textureStatus === 'loading'
+                ? '텍스처 생성 중...'
+                : '분석 중...'}
+            </span>
           </>
         ) : (
           <>
@@ -249,6 +374,18 @@ export function ReferenceModelUpload() {
                 신뢰도: {CONFIDENCE_LABELS[result.confidence] ?? result.confidence}
               </span>
             </div>
+            {textureStatus === 'loading' && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                <span className="text-[10px] text-muted-foreground">텍스처 생성 중...</span>
+              </div>
+            )}
+            {textureStatus === 'success' && (
+              <span className="text-[10px] text-emerald-500">텍스처 적용 완료</span>
+            )}
+            {textureStatus === 'error' && (
+              <span className="text-[10px] text-amber-500">텍스처 생성 실패 (헤어만 적용됨)</span>
+            )}
           </div>
         </div>
       )}

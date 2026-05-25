@@ -264,6 +264,18 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }));
   },
 
+  applyTextureResult: (textures) => {
+    pushUndo(get());
+    set((state) => {
+      const updated = { ...state.materials };
+      for (const [slotName, dataUrl] of Object.entries(textures)) {
+        const prev = updated[slotName] ?? { name: slotName };
+        updated[slotName] = { ...prev, textureUrl: dataUrl };
+      }
+      return { materials: updated };
+    });
+  },
+
   // --- Reset All ---
   resetAll: () => {
     pushUndo(get());
