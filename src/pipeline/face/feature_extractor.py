@@ -142,8 +142,8 @@ def extract_features_full(
         avatar_keys["Face_Cheek"] = _map_01(_side_cheek_raw, 0.25, 0.80)
         raw_out["Face_Cheek"] = {"value": _side_cheek_raw, "source": "renderer/depth"}
     else:
-        avatar_keys["Face_Cheek"] = 0.0
-        raw_out["Face_Cheek"] = {"value": None, "source": "unavailable"}
+        # 2D 입력 시: avatar_keys의 2D 윤곽 기반 계산값 유지
+        raw_out["Face_Cheek"] = {"value": raw_out.get("Face_Cheek"), "source": "2d_contour"}
 
     return fv, avatar_keys, raw_out
 

@@ -142,7 +142,8 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     ),
     "Brow_WidthV": _spec(
         value_range=(-1.0, 1.0), domain="brow",
-        description="Brow thickness — disabled (requires pixel analysis).",
+        source="gemini", feature="eyebrow.thickness", enabled=True,
+        description="Brow thickness — mapped from Gemini eyebrow.thickness (thin/medium/thick).",
     ),
     # ── Nose ──────────────────────────────────────────────────────────────
     "Nose_Height": _spec(
@@ -152,7 +153,8 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     ),
     "Nose_Width": _spec(
         value_range=(0.0, 1.0), domain="nose",
-        description="Nose width — disabled (no ala landmarks in ADF).",
+        source="FaceFeatureVector", feature="inner_eye_dist_ratio", enabled=True,
+        description="Nose width — proxy from inner-eye distance ratio.",
     ),
     "Nose_UnderNose": _spec(
         value_range=(-1.0, 1.0), domain="nose",

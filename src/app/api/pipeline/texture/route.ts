@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 
 const PROJECT_ROOT = process.cwd();
 const PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline');
+const FACE_PIPELINE_DIR = join(PIPELINE_DIR, 'face');
 const KANOSAWA_DIR = join(PIPELINE_DIR, 'kanosawa');
 const TEXTURES_DIR = join(PIPELINE_DIR, 'assets', 'textures');
 const THUMBNAILS_DIR = join(PROJECT_ROOT, 'public', 'thumbnails');
@@ -90,12 +91,12 @@ export async function POST(request: NextRequest) {
       'extract_features',
     );
 
-    // Step 3 & 4: Adjust textures + analyze hairstyle (in parallel)
-    // Hairstyle analysis uses OpenCV with the landmarks from Step 1 (deterministic, no Gemini)
+    // Step 3, 4 & 5: Adjust textures + analyze hairstyle + face-keys (in parallel)
     const outputDir = join(workDir, 'output');
     const hairMatchJson = join(workDir, 'hair_match.json');
+    const faceKeysJson = join(workDir, 'face_keys.json');
 
-    const [, hairMatchResult] = await Promise.allSettled([
+    const [, hairMatchResult, faceKeysResult] = await Promise.allSettled([
       runPython(
         join(PIPELINE_DIR, 'adjust_texture.py'),
         ['--features', featuresJson, '--input_dir', TEXTURES_DIR, '--output_dir', outputDir],
@@ -107,6 +108,12 @@ export async function POST(request: NextRequest) {
         ['--image', imagePath, '--landmarks', landmarksJson, '--features', featuresJson, '--output', hairMatchJson],
         PIPELINE_DIR,
         'analyze_hairstyle',
+      ),
+      runPython(
+        join(FACE_PIPELINE_DIR, 'run_extract.py'),
+        ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson, '--landmarks', landmarksJson],
+        FACE_PIPELINE_DIR,
+        'run_extract (face-keys)',
       ),
     ]);
 
@@ -126,10 +133,11 @@ export async function POST(request: NextRequest) {
       textures[slotKey] = dataUrl;
     }
 
-    // Read features, landmarks, and hair match for frontend use
+    // Read features, landmarks, hair match, and face-keys for frontend use
     let features: unknown = null;
     let landmarks: unknown = null;
     let hairMatch: unknown = null;
+    let faceKeys: unknown = null;
     try {
       if (existsSync(featuresJson)) {
         features = JSON.parse(await readFile(featuresJson, 'utf-8'));
@@ -143,11 +151,17 @@ export async function POST(request: NextRequest) {
       } else if (hairMatchResult?.status === 'rejected') {
         console.warn('[TexturePipeline] Hair matching failed:', hairMatchResult.reason);
       }
+      if (faceKeysResult?.status === 'fulfilled' && existsSync(faceKeysJson)) {
+        faceKeys = JSON.parse(await readFile(faceKeysJson, 'utf-8'));
+        console.log('[TexturePipeline] Face keys extracted');
+      } else if (faceKeysResult?.status === 'rejected') {
+        console.warn('[TexturePipeline] Face keys extraction failed:', faceKeysResult.reason);
+      }
     } catch {
       // non-critical
     }
 
-    return NextResponse.json({ textures, features, landmarks, hairMatch });
+    return NextResponse.json({ textures, features, landmarks, hairMatch, faceKeys });
   } catch (err) {
     console.error('[TexturePipeline] Error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';

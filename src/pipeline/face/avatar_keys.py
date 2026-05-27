@@ -242,7 +242,12 @@ def compute_avatar_keys(
 
     Nose_Height = 0.0  # overridden by depth below; no reliable 2D fallback
     if _raw_out is not None: _raw_out["Nose_Height"] = None
-    Nose_Width = 0.5
+
+    # Nose_Width: 눈 간 거리 비율 기반 프록시 (눈 사이가 넓으면 코도 넓은 경향)
+    inner_eye_dist = d(R_inner, L_inner)
+    _nose_w_ratio = inner_eye_dist / max(face_width, _EPS)
+    Nose_Width = float(max(0.0, min(1.0, _map_01(_nose_w_ratio, 0.20, 0.45))))
+    if _raw_out is not None: _raw_out["Nose_Width"] = _nose_w_ratio
 
     _rv = (float(p(25)[1]) - float(N[1])) / face_scale
     Nose_UnderNose = _map_signed(_rv, *_SC["Nose_UnderNose"])
@@ -344,3 +349,68 @@ def compute_avatar_keys(
         "Face_Roundness":   Face_Roundness,
         "Face_ChinWidth":   Face_ChinWidth,
     }
+
+
+def apply_gemini_face_corrections(
+    avatar_keys: dict,
+    gemini_features: dict,
+    blend_weight: float = 0.3,
+) -> dict:
+    """
+    Gemini의 정성적 얼굴 형태 분석(face_shape, chin_shape, jaw_prominence)과
+    눈썹 두께(eyebrow.thickness)를 0~1 수치로 매핑하고, ADF 키값과 블렌딩하여 보정.
+
+    gemini_features: full Gemini features dict (with general, eyebrow, etc.)
+                     또는 general 섹션만 전달해도 동작.
+    ADF (1 - blend_weight) + Gemini (blend_weight) 비율로 블렌딩.
+    """
+    result = avatar_keys.copy()
+
+    # general 섹션 (직접 전달 또는 nested)
+    gemini_general = gemini_features.get("general", gemini_features)
+
+    # face_shape → Face_Roundness 보정
+    face_shape_map = {
+        "oval": 0.45, "round": 0.75, "heart": 0.35,
+        "square": 0.20, "oblong": 0.30,
+    }
+    face_shape = gemini_general.get("face_shape")
+    if face_shape and face_shape in face_shape_map:
+        gemini_roundness = face_shape_map[face_shape]
+        result["Face_Roundness"] = (
+            result["Face_Roundness"] * (1 - blend_weight) +
+            gemini_roundness * blend_weight
+        )
+
+    # chin_shape → Face_ChinWidth 보정
+    chin_shape_map = {
+        "pointed": 0.20, "round": 0.50, "square": 0.70, "wide": 0.85,
+    }
+    chin_shape = gemini_general.get("chin_shape")
+    if chin_shape and chin_shape in chin_shape_map:
+        gemini_chin = chin_shape_map[chin_shape]
+        result["Face_ChinWidth"] = (
+            result["Face_ChinWidth"] * (1 - blend_weight) +
+            gemini_chin * blend_weight
+        )
+
+    # jaw_prominence → Face_JawLine 보정
+    jaw_map = {
+        "soft": 0.25, "moderate": 0.50, "defined": 0.70, "strong": 0.90,
+    }
+    jaw_prominence = gemini_general.get("jaw_prominence")
+    if jaw_prominence and jaw_prominence in jaw_map:
+        gemini_jaw = jaw_map[jaw_prominence]
+        result["Face_JawLine"] = (
+            result["Face_JawLine"] * (1 - blend_weight) +
+            gemini_jaw * blend_weight
+        )
+
+    # eyebrow.thickness → Brow_WidthV 보정
+    eyebrow = gemini_features.get("eyebrow", {})
+    brow_thickness_map = {"thin": -0.3, "medium": 0.0, "thick": 0.3}
+    thickness = eyebrow.get("thickness")
+    if thickness and thickness in brow_thickness_map:
+        result["Brow_WidthV"] = brow_thickness_map[thickness]
+
+    return result

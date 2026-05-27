@@ -71,6 +71,7 @@ export interface TextureResult {
   landmarks?: unknown;
   features?: unknown;
   hairMatch?: HairMatchResult | null;
+  faceKeys?: PipelineResult | null;
 }
 
 /** Full pipeline response (run_pipeline output) */

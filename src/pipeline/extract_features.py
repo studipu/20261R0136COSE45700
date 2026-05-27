@@ -12,14 +12,23 @@ load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
-def sample_iris_colors(image_path: str, landmarks_path: str) -> dict:
-    """landmark 기반으로 홍채 5방향 색상을 직접 픽셀 샘플링"""
+def sample_iris_colors(image_path: str, landmarks_path: str) -> dict | None:
+    """landmark 기반으로 홍채 5방향 색상을 직접 픽셀 샘플링.
+
+    Returns None if landmarks are unreliable (eye too small, asymmetric,
+    or sampled colors have very low saturation).
+    """
     img = cv2.imread(image_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
     with open(landmarks_path) as f:
         lm_data = json.load(f)
-    lm = lm_data[0]["landmarks"]
+    # Pick the largest face if multiple detected
+    if len(lm_data) > 1:
+        lm_entry = max(lm_data, key=lambda f: f["bbox"][2] * f["bbox"][3])
+    else:
+        lm_entry = lm_data[0]
+    lm = lm_entry["landmarks"]
 
     eyes = [
         {
@@ -33,6 +42,18 @@ def sample_iris_colors(image_path: str, landmarks_path: str) -> dict:
             "ry": int(abs(lm[18][1] - lm[16][1]) / 2),
         },
     ]
+
+    # Validate eye dimensions — skip if either eye region is too small
+    # or too asymmetric (indicates landmark misdetection from hair occlusion)
+    min_radius = 12
+    for eye in eyes:
+        if eye["rx"] < min_radius or eye["ry"] < min_radius:
+            print(f"  홍채 샘플링 건너뜀: 눈 영역 너무 작음 (rx={eye['rx']}, ry={eye['ry']})")
+            return None
+    ratio = max(eyes[0]["rx"], eyes[1]["rx"]) / max(min(eyes[0]["rx"], eyes[1]["rx"]), 1)
+    if ratio > 2.5:
+        print(f"  홍채 샘플링 건너뜀: 눈 크기 비대칭 ({ratio:.1f}x)")
+        return None
 
     def sample_sector(img_rgb, cx, cy, rx, ry, angle_start, angle_end, r_min=0.2, r_max=0.8):
         """부채꼴 영역에서 지배적인 색상 추출 (흰색 하이라이트 제외)"""
@@ -274,7 +295,10 @@ Reply ONLY in JSON format. No explanation, no markdown, no extra text.
     "hair_style": "one of: long_straight/short_bob/ponytail/very_long_straight/short_braid/twin_tails/other",
     "hair_length": "one of: short/medium/long/very_long",
     "bangs_style": "one of: full/side_swept/curtain/none",
-    "overall_style": "soft/sharp/cute/mature"
+    "overall_style": "soft/sharp/cute/mature",
+    "face_shape": "one of: oval/round/heart/square/oblong",
+    "chin_shape": "one of: pointed/round/square/wide",
+    "jaw_prominence": "one of: soft/moderate/defined/strong"
   }
 }
 
@@ -355,11 +379,14 @@ Rules:
 
     features = json.loads(raw)
 
-    # pupil 색상은 OpenCV로 직접 샘플링 (Gemini보다 정확)
+    # pupil 색상: OpenCV 직접 샘플링 시도 (랜드마크 신뢰성 검증 후 적용)
     if landmarks_path and Path(landmarks_path).exists():
         iris_colors = sample_iris_colors(image_path, landmarks_path)
-        features["pupil"].update(iris_colors)
-        print("  홍채 색상: OpenCV 직접 샘플링 완료")
+        if iris_colors is not None:
+            features["pupil"].update(iris_colors)
+            print("  홍채 색상: OpenCV 직접 샘플링 완료")
+        else:
+            print("  홍채 색상: 랜드마크 불안정 → Gemini 추출값 유지")
 
     return features
 

@@ -89,6 +89,64 @@ def adjust_hue(
     return result
 
 
+def adjust_hue_v2(
+    texture_bgra: np.ndarray,
+    target_rgb: list,
+    opacity: float = 1.0
+) -> np.ndarray:
+    """
+    Hue Shift 방식 — 원본 텍스처 내 색조 변화를 보존하면서 전체 톤만 이동.
+    원본의 평균 Hue를 circular mean으로 계산하고, target과의 delta만 적용.
+    """
+    result = texture_bgra.copy()
+    bgr = texture_bgra[:, :, :3]
+    alpha = texture_bgra[:, :, 3]
+
+    hsv_orig = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV).astype(np.float32)
+    hsv_new = hsv_orig.copy()
+
+    target_bgr = np.uint8([[[target_rgb[2], target_rgb[1], target_rgb[0]]]])
+    target_hsv = cv2.cvtColor(target_bgr, cv2.COLOR_BGR2HSV)[0][0].astype(np.float32)
+
+    ys, xs = np.where(alpha > 0)
+    if len(ys) == 0:
+        return result
+
+    region = hsv_orig[ys, xs]
+    orig_s_mean = np.mean(region[:, 1]) + 1e-6
+
+    # Circular mean of original hue (OpenCV hue range: 0~179)
+    hues_rad = region[:, 0] * (2 * np.pi / 180.0)
+    sin_mean = np.mean(np.sin(hues_rad))
+    cos_mean = np.mean(np.cos(hues_rad))
+    orig_mean_hue = (np.degrees(np.arctan2(sin_mean, cos_mean)) / 2.0) % 180.0
+
+    # Hue delta: 각 픽셀에 delta를 더해 원본 색조 변화 보존
+    hue_delta = target_hsv[0] - orig_mean_hue
+    hsv_new[ys, xs, 0] = (region[:, 0] + hue_delta) % 180.0
+
+    # 채도 보정 (adjust_hue와 동일 로직)
+    if orig_s_mean < 30:
+        hsv_new[ys, xs, 1] = np.clip(
+            region[:, 1] + target_hsv[1] * opacity * 0.5, 0, 255
+        )
+    else:
+        hsv_new[ys, xs, 1] = np.clip(
+            region[:, 1] * (target_hsv[1] / orig_s_mean), 0, 255
+        )
+
+    # opacity 블렌딩
+    hsv_blended = hsv_orig.copy()
+    hsv_blended[ys, xs] = (
+        hsv_orig[ys, xs] * (1 - opacity) + hsv_new[ys, xs] * opacity
+    )
+
+    new_bgr = cv2.cvtColor(hsv_blended.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    result[:, :, :3] = new_bgr
+    result[:, :, 3] = alpha
+    return result
+
+
 # UV 좌표 상수 (UV_Face.png 실측 + uv_grid 시각 확인 기반)
 # 눈 구멍: Y=0.541 (실측), 좌X=0.341, 우X=0.657
 # 볼터치:  Y=0.62, X=0.25(좌)/0.75(우) (시각 확인)
@@ -262,7 +320,7 @@ def add_markings(
 
 def adjust_face(texture_bgra: np.ndarray, features: dict, lm: list = None, img_w: int = 1024, img_h: int = 1024) -> np.ndarray:
     face = features["face"]
-    result = adjust_hue(texture_bgra, face["skin_tone"])
+    result = adjust_hue_v2(texture_bgra, face["skin_tone"])
 
     if lm and face.get("blush_present"):
         result = add_blush(
@@ -276,13 +334,117 @@ def adjust_face(texture_bgra: np.ndarray, features: dict, lm: list = None, img_w
     if lm and face.get("markings"):
         result = add_markings(result, face["markings"], lm, img_w, img_h)
 
+    # 피부 쉐이딩 강도 적용: V 채널 대비 강화
+    shading = face.get("skin_shading_intensity", 0.0)
+    if shading > 0.1:
+        alpha = result[:, :, 3]
+        valid = alpha > 0
+        bgr = result[:, :, :3].astype(np.uint8)
+        hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV).astype(np.float32)
+
+        v_channel = hsv[:, :, 2]
+        v_valid = v_channel[valid]
+        v_mean = np.mean(v_valid) if len(v_valid) > 0 else 128.0
+
+        contrast_factor = 1.0 + shading * 0.4
+        v_channel[valid] = np.clip(
+            v_mean + (v_channel[valid] - v_mean) * contrast_factor, 0, 255
+        )
+        hsv[:, :, 2] = v_channel
+
+        result[:, :, :3] = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+
     return result
 
 
 def adjust_eyebrow(texture_bgra: np.ndarray, features: dict) -> np.ndarray:
     eyebrow = features["eyebrow"]
     opacity = eyebrow.get("opacity", 1.0)
-    result = adjust_hue(texture_bgra, eyebrow["color"], opacity)
+
+    if eyebrow.get("has_gradient"):
+        # 수평 방향 opacity 그라데이션: 중앙이 가장 진하고 양끝이 옅어지는 포물선
+        result = texture_bgra.copy()
+        h, w = result.shape[:2]
+        alpha = result[:, :, 3]
+
+        ys, xs = np.where(alpha > 0)
+        if len(xs) > 0:
+            x_min, x_max = xs.min(), xs.max()
+            x_range = max(x_max - x_min, 1)
+            x_center = (x_min + x_max) / 2.0
+
+            # 포물선 그라데이션 마스크: 중앙=1.0, 양끝=0.3
+            grad_mask = np.zeros((h, w), dtype=np.float32)
+            for y, x in zip(ys, xs):
+                t = abs(x - x_center) / (x_range / 2.0)  # 0~1 (중앙=0, 끝=1)
+                grad_mask[y, x] = 1.0 - 0.7 * t * t  # 포물선: 1.0 → 0.3
+
+            # 그라데이션된 opacity로 adjust_hue_v2 적용
+            full_result = adjust_hue_v2(texture_bgra, eyebrow["color"], opacity)
+            # 원본과 보정 결과를 그라데이션 마스크로 블렌딩
+            mask_3ch = grad_mask[:, :, np.newaxis]
+            result[:, :, :3] = np.clip(
+                texture_bgra[:, :, :3].astype(np.float32) * (1 - mask_3ch) +
+                full_result[:, :, :3].astype(np.float32) * mask_3ch,
+                0, 255
+            ).astype(np.uint8)
+        return result
+    else:
+        result = adjust_hue_v2(texture_bgra, eyebrow["color"], opacity)
+        return result
+
+
+def add_eyeshadow(texture_bgra: np.ndarray, eyeline_features: dict) -> np.ndarray:
+    """아이섀도 오버레이 — position에 따른 마스크 + 가우시안 블러 그라데이션"""
+    result = texture_bgra.copy()
+    h, w = result.shape[:2]
+    alpha = result[:, :, 3]
+
+    color_rgb = eyeline_features.get("eyeshadow_color", [0, 0, 0])
+    opacity = eyeline_features.get("eyeshadow_opacity", 0.5)
+    position = eyeline_features.get("eyeshadow_position", "lid_only")
+
+    shadow_bgr = np.array([color_rgb[2], color_rgb[1], color_rgb[0]], dtype=np.float32)
+
+    # position에 따른 세로 영역 비율 (텍스처 내 상대 위치)
+    if position == "lid_only":
+        y_start, y_end = 0.3, 0.55
+    elif position == "lid_and_crease":
+        y_start, y_end = 0.0, 0.55
+    elif position == "under_eye":
+        y_start, y_end = 0.6, 1.0
+    else:  # full
+        y_start, y_end = 0.0, 1.0
+
+    y0 = int(h * y_start)
+    y1 = int(h * y_end)
+
+    # 아이섀도 마스크 생성
+    shadow_mask = np.zeros((h, w), dtype=np.float32)
+    shadow_mask[y0:y1, :] = 1.0
+
+    # 알파 채널과 교차
+    shadow_mask *= (alpha > 0).astype(np.float32)
+
+    # 가우시안 블러로 부드러운 경계
+    blur_size = max(int(h * 0.15) | 1, 3)
+    shadow_mask = cv2.GaussianBlur(shadow_mask, (blur_size, blur_size), 0)
+    shadow_mask = np.clip(shadow_mask * opacity, 0, 1)
+
+    # 오버레이 블렌딩
+    shadow_layer = np.full((h, w, 3), shadow_bgr, dtype=np.float32)
+    mask_3ch = shadow_mask[:, :, np.newaxis]
+
+    result[:, :, :3] = np.where(
+        mask_3ch > 0,
+        np.clip(
+            result[:, :, :3].astype(np.float32) * (1 - mask_3ch * 0.6) +
+            shadow_layer * mask_3ch * 0.6,
+            0, 255
+        ).astype(np.uint8),
+        result[:, :, :3]
+    )
+
     return result
 
 
@@ -321,11 +483,30 @@ def adjust_eyeline(texture_bgra: np.ndarray, features: dict) -> np.ndarray:
     liner_opacity = liner_thickness_opacity.get(
         eyeline.get("eyeliner_thickness", "medium"), 0.9
     )
+
+    # 속눈썹 강도 반영
+    lash_multiplier = {"light": 0.85, "medium": 1.0, "heavy": 1.15}
+    lash_intensity = eyeline.get("lash_intensity", "medium")
+    liner_opacity = min(1.0, liner_opacity * lash_multiplier.get(lash_intensity, 1.0))
+
     temp = result.copy()
     temp[:, :, 3] = liner_mask
     temp = adjust_hue(temp, eyeline["eyeliner_color"], liner_opacity)
     valid = liner_mask > 0
     result[valid] = temp[valid]
+
+    # heavy 속눈썹: 하단 15% 영역 추가 어둡게 (속눈썹 두께 표현)
+    if lash_intensity == "heavy":
+        lash_bottom = int(h * 0.85)
+        lash_zone = (alpha[lash_bottom:, :] > 0)
+        if np.any(lash_zone):
+            zone_bgr = result[lash_bottom:, :, :3].astype(np.float32)
+            zone_bgr[lash_zone] *= 0.85
+            result[lash_bottom:, :, :3] = np.clip(zone_bgr, 0, 255).astype(np.uint8)
+
+    # 아이섀도 적용 (eyeshadow_present가 true일 때만)
+    if eyeline.get("eyeshadow_present"):
+        result = add_eyeshadow(result, eyeline)
 
     result[:, :, 3] = alpha
     return result
@@ -407,7 +588,8 @@ def adjust_pupil(texture_bgra: np.ndarray, features: dict) -> np.ndarray:
 
                 nx = (px - cx) / rx  # -1~1
                 ny = (py - cy) / ry  # -1~1
-                if nx*nx + ny*ny > 1.0:
+                r = np.sqrt(nx*nx + ny*ny)
+                if r > 1.0:
                     continue
 
                 # 5방향 가중치 보간으로 타겟 색상 계산
@@ -433,7 +615,16 @@ def adjust_pupil(texture_bgra: np.ndarray, features: dict) -> np.ndarray:
                 tgt_v = tgt_hsv[2]
                 remapped_v = np.clip(tgt_v * 0.7 + orig_v_norm * tgt_v * 0.6, 0, 255)
 
-                new_hsv = np.array([tgt_hsv[0], tgt_hsv[1], remapped_v], dtype=np.uint8)
+                # 반경 기반 radial ring zone 보정
+                if r < 0.55:
+                    # inner iris (동공 근처): 채도 +20%, 명도 -10%
+                    ring_s = min(255, tgt_hsv[1] * 1.2)
+                    ring_v = remapped_v * 0.9
+                    new_hsv = np.array([tgt_hsv[0], ring_s, ring_v], dtype=np.uint8)
+                else:
+                    # mid iris (0.55~0.80): 기존 5방향 보간 유지
+                    new_hsv = np.array([tgt_hsv[0], tgt_hsv[1], remapped_v], dtype=np.uint8)
+
                 new_bgr = cv2.cvtColor(new_hsv.reshape(1,1,3), cv2.COLOR_HSV2BGR)[0][0]
                 result[py, px, :3] = new_bgr
 
@@ -460,7 +651,7 @@ def adjust_pupil(texture_bgra: np.ndarray, features: dict) -> np.ndarray:
 
         # 동공 경계 어둡게 + 블렌딩 (고정 위치/크기)
         pupil_color_bgr = tuple(reversed(pupil.get("pupil_color", [20, 10, 20])))
-        PUPIL_RATIO = 0.35   # BaseTexture 기준 고정값
+        PUPIL_RATIO = max(0.20, min(0.50, pupil.get("pupil_size_ratio", 0.35)))
         pupil_offset = 6 if eye == eyes[0] else -6
         result = apply_pupil_darkening(result, cx, cy, rx, ry, PUPIL_RATIO, pupil_color_bgr, pupil_cx_offset=pupil_offset)
 

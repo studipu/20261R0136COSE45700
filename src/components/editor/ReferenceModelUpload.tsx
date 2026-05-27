@@ -201,15 +201,27 @@ export function ReferenceModelUpload() {
       }
 
       // Apply face-keys result (morph targets)
-      if (faceKeysResult.status === 'fulfilled') {
+      // Prefer face-keys from texture pipeline (includes Gemini face shape corrections)
+      let faceKeysApplied = false;
+      if (textureResult.status === 'fulfilled') {
+        const textureFaceKeys = textureResult.value.faceKeys as PipelineResult | null;
+        if (textureFaceKeys?.status === 'ok' && textureFaceKeys.avatar_parameters) {
+          applyPipelineResult(textureFaceKeys.avatar_parameters);
+          faceKeysApplied = true;
+          console.log(`[ReferenceUpload] Face keys applied (with Gemini corrections): ${Object.keys(textureFaceKeys.avatar_parameters).length} parameters (template: ${textureFaceKeys.template})`);
+        }
+      }
+
+      // Fallback: use separate face-keys API result
+      if (!faceKeysApplied && faceKeysResult.status === 'fulfilled') {
         const faceKeys = faceKeysResult.value;
         if (faceKeys.status === 'ok' && faceKeys.avatar_parameters) {
           applyPipelineResult(faceKeys.avatar_parameters);
-          console.log(`[ReferenceUpload] Face keys applied: ${Object.keys(faceKeys.avatar_parameters).length} parameters (template: ${faceKeys.template})`);
+          console.log(`[ReferenceUpload] Face keys applied (standalone): ${Object.keys(faceKeys.avatar_parameters).length} parameters (template: ${faceKeys.template})`);
         } else {
           console.warn('[ReferenceUpload] Face keys extraction failed:', faceKeys.error);
         }
-      } else {
+      } else if (!faceKeysApplied && faceKeysResult.status === 'rejected') {
         console.error('[ReferenceUpload] Face keys pipeline failed:', faceKeysResult.reason);
       }
     },
