@@ -13,6 +13,7 @@ import * as THREE from 'three';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 type TextureStatus = 'idle' | 'loading' | 'success' | 'error';
+type Generate3dStatus = 'idle' | 'loading' | 'success' | 'error';
 
 interface Result {
   presetName: string;
@@ -43,6 +44,7 @@ function isModelFile(name: string): boolean {
 export function ReferenceModelUpload() {
   const [status, setStatus] = useState<Status>('idle');
   const [textureStatus, setTextureStatus] = useState<TextureStatus>('idle');
+  const [generate3dStatus, setGenerate3dStatus] = useState<Generate3dStatus>('idle');
   const [result, setResult] = useState<Result | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -88,6 +90,7 @@ export function ReferenceModelUpload() {
     async (file: File) => {
       setStatus('loading');
       setTextureStatus('loading');
+      setGenerate3dStatus('loading');
       setResult(null);
       setErrorMsg('');
 
@@ -121,10 +124,25 @@ export function ReferenceModelUpload() {
         return res.json() as Promise<PipelineResult>;
       });
 
-      const [hairResult, textureResult, faceKeysResult] = await Promise.allSettled([
+      // VARCO 3D generation pipeline (Stage 2-6: image → GLB → render → depth-enhanced extraction)
+      const generate3dFormData = new FormData();
+      generate3dFormData.append('image', file);
+      const generate3dPromise = fetch('/api/pipeline/generate-3d', {
+        method: 'POST',
+        body: generate3dFormData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `Generate 3D pipeline failed (${res.status})`);
+        }
+        return res.json() as Promise<PipelineResult>;
+      });
+
+      const [hairResult, textureResult, faceKeysResult, generate3dResult] = await Promise.allSettled([
         hairPromise,
         texturePromise,
         faceKeysPromise,
+        generate3dPromise,
       ]);
 
       // Apply hair matching result (initial — may be refined by Gemini color below)
@@ -201,9 +219,28 @@ export function ReferenceModelUpload() {
       }
 
       // Apply face-keys result (morph targets)
-      // Prefer face-keys from texture pipeline (includes Gemini face shape corrections)
+      // Priority: generate-3d (depth-enhanced) > texture pipeline (Gemini corrections) > standalone face-keys
       let faceKeysApplied = false;
-      if (textureResult.status === 'fulfilled') {
+
+      // 1st priority: generate-3d pipeline (VARCO → render → depth-enhanced extraction)
+      if (generate3dResult.status === 'fulfilled') {
+        const gen3d = generate3dResult.value;
+        if (gen3d.status === 'ok' && gen3d.avatar_parameters) {
+          applyPipelineResult(gen3d.avatar_parameters);
+          faceKeysApplied = true;
+          setGenerate3dStatus('success');
+          console.log(`[ReferenceUpload] Face keys applied (generate-3d, source: ${gen3d.feature_source}): ${Object.keys(gen3d.avatar_parameters).length} parameters (template: ${gen3d.template}, glb: ${gen3d.glb_path})`);
+        } else {
+          setGenerate3dStatus('error');
+          console.warn('[ReferenceUpload] Generate 3D pipeline failed:', gen3d.error);
+        }
+      } else if (generate3dResult.status === 'rejected') {
+        setGenerate3dStatus('error');
+        console.warn('[ReferenceUpload] Generate 3D pipeline failed:', generate3dResult.reason);
+      }
+
+      // 2nd priority: texture pipeline face-keys (includes Gemini face shape corrections)
+      if (!faceKeysApplied && textureResult.status === 'fulfilled') {
         const textureFaceKeys = textureResult.value.faceKeys as PipelineResult | null;
         if (textureFaceKeys?.status === 'ok' && textureFaceKeys.avatar_parameters) {
           applyPipelineResult(textureFaceKeys.avatar_parameters);
@@ -212,7 +249,7 @@ export function ReferenceModelUpload() {
         }
       }
 
-      // Fallback: use separate face-keys API result
+      // 3rd priority: standalone face-keys API result
       if (!faceKeysApplied && faceKeysResult.status === 'fulfilled') {
         const faceKeys = faceKeysResult.value;
         if (faceKeys.status === 'ok' && faceKeys.avatar_parameters) {
@@ -325,7 +362,7 @@ export function ReferenceModelUpload() {
           e.preventDefault();
           setIsDragging(false);
         }}
-        onClick={() => status !== 'loading' && textureStatus !== 'loading' && inputRef.current?.click()}
+        onClick={() => status !== 'loading' && textureStatus !== 'loading' && generate3dStatus !== 'loading' && inputRef.current?.click()}
         className={`relative flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-lg border border-dashed cursor-pointer transition-all ${
           isDragging
             ? 'border-primary/60 bg-primary/5'
@@ -342,7 +379,7 @@ export function ReferenceModelUpload() {
           className="hidden"
         />
 
-        {status === 'loading' || textureStatus === 'loading' ? (
+        {status === 'loading' || textureStatus === 'loading' || generate3dStatus === 'loading' ? (
           <>
             <Loader2 className="w-5 h-5 text-primary animate-spin" />
             <span className="text-[11px] text-muted-foreground">
@@ -350,6 +387,8 @@ export function ReferenceModelUpload() {
                 ? '헤어 매칭 + 텍스처 생성 중...'
                 : textureStatus === 'loading'
                 ? '텍스처 생성 중...'
+                : generate3dStatus === 'loading'
+                ? '3D 생성 중 (VARCO)...'
                 : '분석 중...'}
             </span>
           </>
@@ -397,6 +436,18 @@ export function ReferenceModelUpload() {
             )}
             {textureStatus === 'error' && (
               <span className="text-[10px] text-amber-500">텍스처 생성 실패 (헤어만 적용됨)</span>
+            )}
+            {generate3dStatus === 'loading' && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                <span className="text-[10px] text-muted-foreground">3D 생성 중 (VARCO)...</span>
+              </div>
+            )}
+            {generate3dStatus === 'success' && (
+              <span className="text-[10px] text-emerald-500">3D 생성 완료 (depth 기반 face-keys 적용)</span>
+            )}
+            {generate3dStatus === 'error' && (
+              <span className="text-[10px] text-amber-500">3D 생성 실패 (2D face-keys 사용)</span>
             )}
           </div>
         </div>

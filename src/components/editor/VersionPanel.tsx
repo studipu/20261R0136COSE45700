@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
+import { useVersionSync } from '@/hooks/useVersionSync';
 import { Save, Trash2, RotateCcw, Pencil, Check, X } from 'lucide-react';
 
 interface VersionPanelProps {
@@ -10,10 +11,8 @@ interface VersionPanelProps {
 
 export function VersionPanel({ onCaptureScreenshot }: VersionPanelProps) {
   const versions = useEditorStore((s) => s.versions);
-  const saveVersion = useEditorStore((s) => s.saveVersion);
   const restoreVersion = useEditorStore((s) => s.restoreVersion);
-  const deleteVersion = useEditorStore((s) => s.deleteVersion);
-  const renameVersion = useEditorStore((s) => s.renameVersion);
+  const { syncSaveVersion, syncDeleteVersion, syncRenameVersion } = useVersionSync();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [compareId, setCompareId] = useState<string | null>(null);
@@ -26,11 +25,11 @@ export function VersionPanel({ onCaptureScreenshot }: VersionPanelProps) {
       if (onCaptureScreenshot) {
         thumbnail = await onCaptureScreenshot();
       }
-      saveVersion(undefined, thumbnail);
+      await syncSaveVersion(undefined, thumbnail);
     } finally {
       setIsSaving(false);
     }
-  }, [saveVersion, onCaptureScreenshot]);
+  }, [syncSaveVersion, onCaptureScreenshot]);
 
   const handleStartRename = (id: string, currentName: string) => {
     setEditingId(id);
@@ -39,7 +38,7 @@ export function VersionPanel({ onCaptureScreenshot }: VersionPanelProps) {
 
   const handleConfirmRename = () => {
     if (editingId && editName.trim()) {
-      renameVersion(editingId, editName.trim());
+      syncRenameVersion(editingId, editName.trim());
     }
     setEditingId(null);
   };
@@ -162,7 +161,7 @@ export function VersionPanel({ onCaptureScreenshot }: VersionPanelProps) {
                       <Pencil className="w-2.5 h-2.5" />
                     </button>
                     <button
-                      onClick={() => deleteVersion(version.id)}
+                      onClick={() => syncDeleteVersion(version.id)}
                       className="p-0.5 text-muted-foreground hover:text-destructive transition-colors"
                       title="삭제"
                     >

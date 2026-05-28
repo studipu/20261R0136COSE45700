@@ -11,9 +11,10 @@ const execFileAsync = promisify(execFile);
 
 const PROJECT_ROOT = process.cwd();
 const FACE_PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline', 'face');
-const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'face-keys');
+const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'generate-3d');
 
-const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+// VARCO takes 2-5 min + render 30s + extraction 30s
+const TIMEOUT_MS = 7 * 60 * 1000; // 7 minutes
 
 /** Resolve Python interpreter from env var or fallback to system python3 */
 function getPython(): string {
@@ -27,24 +28,28 @@ async function runPython(
   label: string,
 ): Promise<string> {
   const python = getPython();
-  console.log(`[FacePipeline] Running ${label} with ${python}...`);
+  console.log(`[Generate3D] Running ${label} with ${python}...`);
   const { stdout, stderr } = await execFileAsync(python, [script, ...args], {
     cwd,
     timeout: TIMEOUT_MS,
     env: { ...process.env, PYTHONUNBUFFERED: '1' },
   });
-  if (stderr) console.warn(`[FacePipeline] ${label} stderr:`, stderr);
-  if (stdout) console.log(`[FacePipeline] ${label} stdout:`, stdout);
+  if (stderr) console.warn(`[Generate3D] ${label} stderr:`, stderr);
+  if (stdout) console.log(`[Generate3D] ${label} stdout:`, stdout);
   return stdout;
 }
 
 export async function POST(request: NextRequest) {
-  const workDir = join(tmpdir(), `face-pipeline-${randomUUID()}`);
+  const workDir = join(tmpdir(), `generate-3d-${randomUUID()}`);
 
   try {
     // Parse multipart form data
     const formData = await request.formData();
     const imageFile = formData.get('image') as File | null;
+    const provider = (formData.get('provider') as string) || process.env.VARCO_PROVIDER || 'meshy';
+    const apiKey = (formData.get('apiKey') as string) || process.env.VARCO_API_KEY || '';
+    const skip3d = formData.get('skip3d') === 'true';
+    const existingGlb = formData.get('existingGlb') as string | null;
 
     if (!imageFile) {
       return NextResponse.json({ error: 'No image file provided' }, { status: 400 });
@@ -59,24 +64,32 @@ export async function POST(request: NextRequest) {
     await writeFile(imagePath, imageBuffer);
 
     // Build CLI arguments
-    const resultJson = join(workDir, 'result.json');
-    const extractArgs = ['--image', imagePath, '--output', resultJson];
+    const pipelineArgs = [
+      '--image', imagePath,
+      '--output-dir', workDir,
+      '--provider', provider,
+    ];
 
-    // Optional: use rendered front view with depth maps for more accurate extraction
-    const renderDir = formData.get('renderDir') as string | null;
-    if (renderDir) {
-      extractArgs.push('--render-dir', renderDir);
+    if (apiKey) {
+      pipelineArgs.push('--api-key', apiKey);
+    }
+    if (skip3d) {
+      pipelineArgs.push('--skip-3d');
+    }
+    if (existingGlb) {
+      pipelineArgs.push('--existing-glb', existingGlb);
     }
 
-    // Run face feature extraction pipeline
+    // Run full pipeline
     await runPython(
-      join(FACE_PIPELINE_DIR, 'run_extract.py'),
-      extractArgs,
+      join(FACE_PIPELINE_DIR, 'run_pipeline.py'),
+      pipelineArgs,
       FACE_PIPELINE_DIR,
-      'run_extract',
+      'run_pipeline',
     );
 
     // Read result JSON
+    const resultJson = join(workDir, 'pipeline_result.json');
     if (!existsSync(resultJson)) {
       return NextResponse.json(
         { status: 'error', error: 'Pipeline produced no output' },
@@ -91,14 +104,14 @@ export async function POST(request: NextRequest) {
       const ts = new Date().toISOString().replace(/[:.]/g, '-');
       const debugOut = join(DEBUG_DIR, ts);
       await cp(workDir, debugOut, { recursive: true });
-      console.log(`[FacePipeline] Debug saved: ${debugOut}`);
+      console.log(`[Generate3D] Debug saved: ${debugOut}`);
     } catch (e) {
-      console.warn('[FacePipeline] Debug save failed:', e);
+      console.warn('[Generate3D] Debug save failed:', e);
     }
 
     return NextResponse.json(result);
   } catch (err) {
-    console.error('[FacePipeline] Error:', err);
+    console.error('[Generate3D] Error:', err);
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json(
       { status: 'error', error: message },

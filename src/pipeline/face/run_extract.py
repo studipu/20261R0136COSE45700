@@ -7,6 +7,10 @@ Writes a JSON file with avatar_parameters, template, confidence, etc.
 
 When the ADF server is unavailable, falls back to kanosawa 24-point
 landmarks (--landmarks flag) converted to ADF 28-point format.
+
+Optional 3D render integration:
+    --front-render <path>  Use a rendered front view image (with depth in same dir)
+    --render-dir <path>    Directory containing render outputs (front.png, front_depth.npy, etc.)
 """
 import argparse
 import json
@@ -19,7 +23,7 @@ from pupil_detector import extract_features_with_pupils
 from parameter_specs import apply_specs, PARAMETER_SPECS
 from template_selector import select_template
 from avatar_keys import compute_avatar_keys, apply_gemini_face_corrections
-from feature_extractor import _compute_features, _to_bgr, ADF_KP_GROUPS
+from feature_extractor import _compute_features, _to_bgr, ADF_KP_GROUPS, visualize_landmarks
 from kanosawa_converter import (
     kanosawa_to_adf,
     kanosawa_pupil_centers,
@@ -81,6 +85,9 @@ def _run_kanosawa_fallback(image_path: str, landmarks_path: str):
     # 2D input: preserve contour-based Face_Cheek value
     raw_out["Face_Cheek"] = {"value": raw_out.get("Face_Cheek"), "source": "2d_contour"}
 
+    # Save converted ADF landmarks for debugging
+    raw_out["_adf_landmarks"] = [[float(p[0]), float(p[1])] for p in lm_px]
+
     return fv, avatar_keys, raw_out
 
 
@@ -92,6 +99,10 @@ def main():
                         help="Optional Gemini features.json for face shape correction")
     parser.add_argument("--landmarks", default=None,
                         help="Optional kanosawa landmarks.json as ADF fallback")
+    parser.add_argument("--front-render", default=None,
+                        help="Optional rendered front view image (depth auto-loaded from same dir)")
+    parser.add_argument("--render-dir", default=None,
+                        help="Optional directory containing render outputs (front.png, front_depth.npy, etc.)")
     args = parser.parse_args()
 
     if not os.path.isfile(args.image):
@@ -100,8 +111,32 @@ def main():
             json.dump(result, f, ensure_ascii=False)
         return
 
-    # Try ADF first
-    fv, avatar_keys, raw_out = extract_features_with_pupils(args.image)
+    # Resolve front render path
+    front_render = args.front_render
+    if front_render is None and args.render_dir:
+        candidate = os.path.join(args.render_dir, "front.png")
+        if os.path.isfile(candidate):
+            front_render = candidate
+
+    # Try front render first (depth .npy auto-loaded from same directory)
+    fv = None
+    avatar_keys = None
+    raw_out = None
+    if front_render and os.path.isfile(front_render):
+        print(f"[FacePipeline] Trying front render: {front_render}")
+        try:
+            fv, avatar_keys, raw_out = extract_features_with_pupils(front_render)
+            if fv is not None:
+                print("[FacePipeline] Front render extraction succeeded")
+            else:
+                print("[FacePipeline] Front render: face not detected, falling back to original")
+        except Exception as e:
+            print(f"[FacePipeline] Front render extraction failed: {e}, falling back to original")
+            fv = None
+
+    # Fall back to original image via ADF
+    if fv is None:
+        fv, avatar_keys, raw_out = extract_features_with_pupils(args.image)
 
     # Fallback to kanosawa if ADF failed and landmarks are provided
     if fv is None and args.landmarks and os.path.isfile(args.landmarks):
@@ -128,6 +163,7 @@ def main():
             "feature_vector": fv.to_dict(),
             "avatar_parameters": avatar_parameters,
             "parameter_debug": parameter_debug,
+            "adf_landmarks": raw_out.get("_adf_landmarks"),
             "template": tmpl.template_name,
             "confidence": tmpl.confidence,
             "all_scores": tmpl.all_scores,
@@ -136,6 +172,18 @@ def main():
 
     with open(args.output, "w") as f:
         json.dump(result, f, ensure_ascii=False)
+
+    # Save landmark visualization alongside result JSON
+    if result.get("status") == "ok" and result.get("adf_landmarks"):
+        vis_path = os.path.join(os.path.dirname(args.output), "landmarks.png")
+        try:
+            visualize_landmarks(
+                args.image, save_path=vis_path,
+                kps_list=result["adf_landmarks"],
+            )
+            print(f"[FacePipeline] Landmark visualization saved: {vis_path}")
+        except Exception as e:
+            print(f"[FacePipeline] Visualization failed (non-fatal): {e}")
 
     print(f"[FacePipeline] Result written to {args.output} (status: {result['status']})")
 

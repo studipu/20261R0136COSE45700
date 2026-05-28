@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, readFile, mkdir, rm } from 'fs/promises';
+import { writeFile, readFile, mkdir, rm, cp } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { execFile } from 'child_process';
@@ -11,10 +11,10 @@ const execFileAsync = promisify(execFile);
 
 const PROJECT_ROOT = process.cwd();
 const PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline');
+const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'texture');
 const FACE_PIPELINE_DIR = join(PIPELINE_DIR, 'face');
 const KANOSAWA_DIR = join(PIPELINE_DIR, 'kanosawa');
 const TEXTURES_DIR = join(PIPELINE_DIR, 'assets', 'textures');
-const THUMBNAILS_DIR = join(PROJECT_ROOT, 'public', 'thumbnails');
 
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -72,17 +72,7 @@ export async function POST(request: NextRequest) {
     const imagePath = join(workDir, 'input.png');
     await writeFile(imagePath, imageBuffer);
 
-    // Step 1: Extract landmarks
-    const landmarkOutput = join(workDir, 'landmarks_annotated.png');
-    const landmarksJson = join(workDir, 'landmarks.json');
-    await runPython(
-      join(KANOSAWA_DIR, 'extract_landmarks.py'),
-      [imagePath, landmarkOutput, '--landmarks_json', landmarksJson],
-      KANOSAWA_DIR,
-      'extract_landmarks',
-    );
-
-    // Step 2: Extract features (Gemini API)
+    // Step 1: Extract features (Gemini API)
     const featuresJson = join(workDir, 'features.json');
     await runPython(
       join(PIPELINE_DIR, 'extract_features.py'),
@@ -91,12 +81,13 @@ export async function POST(request: NextRequest) {
       'extract_features',
     );
 
-    // Step 3, 4 & 5: Adjust textures + analyze hairstyle + face-keys (in parallel)
+    // Step 2: ADF face-keys + texture adjustment (parallel)
     const outputDir = join(workDir, 'output');
-    const hairMatchJson = join(workDir, 'hair_match.json');
     const faceKeysJson = join(workDir, 'face_keys.json');
+    const hairMatchJson = join(workDir, 'hair_match.json');
+    const landmarksJson = join(workDir, 'landmarks.json');
 
-    const [, hairMatchResult, faceKeysResult] = await Promise.allSettled([
+    const [, faceKeysInitResult] = await Promise.allSettled([
       runPython(
         join(PIPELINE_DIR, 'adjust_texture.py'),
         ['--features', featuresJson, '--input_dir', TEXTURES_DIR, '--output_dir', outputDir],
@@ -104,23 +95,66 @@ export async function POST(request: NextRequest) {
         'adjust_texture',
       ),
       runPython(
-        join(PIPELINE_DIR, 'analyze_hairstyle.py'),
-        ['--image', imagePath, '--landmarks', landmarksJson, '--features', featuresJson, '--output', hairMatchJson],
-        PIPELINE_DIR,
-        'analyze_hairstyle',
-      ),
-      runPython(
         join(FACE_PIPELINE_DIR, 'run_extract.py'),
-        ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson, '--landmarks', landmarksJson],
+        ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson],
         FACE_PIPELINE_DIR,
-        'run_extract (face-keys)',
+        'run_extract (ADF)',
       ),
     ]);
+
+    // Check if ADF face-keys succeeded
+    let adfOk = false;
+    if (faceKeysInitResult.status === 'fulfilled' && existsSync(faceKeysJson)) {
+      try {
+        const fk = JSON.parse(await readFile(faceKeysJson, 'utf-8'));
+        adfOk = fk.status === 'ok' && !!fk.adf_landmarks;
+      } catch { /* parse error → treat as failed */ }
+    }
+
+    // Step 3: Hairstyle analysis — ADF path or kanosawa fallback
+    if (adfOk) {
+      console.log('[TexturePipeline] ADF succeeded, using ADF landmarks for hairstyle');
+      try {
+        await runPython(
+          join(PIPELINE_DIR, 'analyze_hairstyle.py'),
+          ['--image', imagePath, '--face-keys', faceKeysJson, '--features', featuresJson, '--output', hairMatchJson],
+          PIPELINE_DIR,
+          'analyze_hairstyle (ADF)',
+        );
+      } catch (e) {
+        console.warn('[TexturePipeline] Hairstyle analysis failed:', e);
+      }
+    } else {
+      console.log('[TexturePipeline] ADF failed, running kanosawa fallback');
+      const landmarkOutput = join(workDir, 'landmarks_annotated.png');
+      await runPython(
+        join(KANOSAWA_DIR, 'extract_landmarks.py'),
+        [imagePath, landmarkOutput, '--landmarks_json', landmarksJson],
+        KANOSAWA_DIR,
+        'extract_landmarks (fallback)',
+      );
+
+      // Retry face-keys with kanosawa + hairstyle (parallel)
+      await Promise.allSettled([
+        runPython(
+          join(FACE_PIPELINE_DIR, 'run_extract.py'),
+          ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson, '--landmarks', landmarksJson],
+          FACE_PIPELINE_DIR,
+          'run_extract (kanosawa fallback)',
+        ),
+        runPython(
+          join(PIPELINE_DIR, 'analyze_hairstyle.py'),
+          ['--image', imagePath, '--landmarks', landmarksJson, '--features', featuresJson, '--output', hairMatchJson],
+          PIPELINE_DIR,
+          'analyze_hairstyle (kanosawa)',
+        ),
+      ]);
+    }
 
     // Read generated textures and encode as base64
     const textures: Record<string, string> = {};
 
-    for (const [filename, slotRegex] of Object.entries(TEXTURE_SLOT_MAP)) {
+    for (const [filename] of Object.entries(TEXTURE_SLOT_MAP)) {
       const texturePath = join(outputDir, filename);
       if (!existsSync(texturePath)) continue;
 
@@ -145,20 +179,26 @@ export async function POST(request: NextRequest) {
       if (existsSync(landmarksJson)) {
         landmarks = JSON.parse(await readFile(landmarksJson, 'utf-8'));
       }
-      if (hairMatchResult?.status === 'fulfilled' && existsSync(hairMatchJson)) {
+      if (existsSync(hairMatchJson)) {
         hairMatch = JSON.parse(await readFile(hairMatchJson, 'utf-8'));
         console.log('[TexturePipeline] Hair match result:', JSON.stringify(hairMatch));
-      } else if (hairMatchResult?.status === 'rejected') {
-        console.warn('[TexturePipeline] Hair matching failed:', hairMatchResult.reason);
       }
-      if (faceKeysResult?.status === 'fulfilled' && existsSync(faceKeysJson)) {
+      if (existsSync(faceKeysJson)) {
         faceKeys = JSON.parse(await readFile(faceKeysJson, 'utf-8'));
         console.log('[TexturePipeline] Face keys extracted');
-      } else if (faceKeysResult?.status === 'rejected') {
-        console.warn('[TexturePipeline] Face keys extraction failed:', faceKeysResult.reason);
       }
     } catch {
       // non-critical
+    }
+
+    // Save debug output
+    try {
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      const debugOut = join(DEBUG_DIR, ts);
+      await cp(workDir, debugOut, { recursive: true });
+      console.log(`[TexturePipeline] Debug saved: ${debugOut}`);
+    } catch (e) {
+      console.warn('[TexturePipeline] Debug save failed:', e);
     }
 
     return NextResponse.json({ textures, features, landmarks, hairMatch, faceKeys });

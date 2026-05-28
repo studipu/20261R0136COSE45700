@@ -8,9 +8,11 @@ import { Check } from 'lucide-react';
 interface TemplateSelectorProps {
   currentTemplateId: string | null;
   onSelect: (template: TemplateMetadata) => void;
+  templates?: TemplateMetadata[];
 }
 
-export function TemplateSelector({ currentTemplateId, onSelect }: TemplateSelectorProps) {
+export function TemplateSelector({ currentTemplateId, onSelect, templates }: TemplateSelectorProps) {
+  const templateList = templates ?? TEMPLATES;
   const [confirmTemplate, setConfirmTemplate] = useState<TemplateMetadata | null>(null);
 
   const handleSelect = (template: TemplateMetadata) => {
@@ -28,7 +30,7 @@ export function TemplateSelector({ currentTemplateId, onSelect }: TemplateSelect
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
-        {TEMPLATES.map((template) => {
+        {templateList.map((template) => {
           const isSelected = template.id === currentTemplateId;
           return (
             <button

@@ -171,4 +171,7 @@ def extract_features_with_pupils(
         # 2D 입력 시: avatar_keys의 2D 윤곽 기반 계산값 유지
         raw_out["Face_Cheek"] = {"value": raw_out.get("Face_Cheek"), "source": "2d_contour"}
 
+    # Save raw ADF 28-point landmarks for debugging
+    raw_out["_adf_landmarks"] = [[float(p[0]), float(p[1])] for p in kps_raw]
+
     return fv, avatar_keys, raw_out

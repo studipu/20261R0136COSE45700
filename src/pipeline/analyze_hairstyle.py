@@ -251,8 +251,22 @@ def classify_preset(max_depth: float, has_ponytail: bool, asymmetry: float,
     }
 
 
-def analyze_hairstyle(image_path: str, landmarks_path: str,
-                      features_path: str = None) -> dict:
+def _face_bbox_from_adf(adf_landmarks: list) -> "tuple[int,int,int,int] | None":
+    """Extract face bounding box from ADF 28-point landmarks."""
+    if not adf_landmarks or len(adf_landmarks) < 5:
+        return None
+    lm = np.array(adf_landmarks)
+    return (
+        int(np.min(lm[:, 1])),  # face_top
+        int(np.max(lm[:, 1])),  # face_bottom
+        int(np.min(lm[:, 0])),  # face_left
+        int(np.max(lm[:, 0])),  # face_right
+    )
+
+
+def analyze_hairstyle(image_path: str, landmarks_path: str = None,
+                      features_path: str = None,
+                      face_keys_path: str = None) -> dict:
     """Main analysis: combines OpenCV measurements with Gemini classification."""
     img = cv2.imread(image_path)
     if img is None:
@@ -260,19 +274,30 @@ def analyze_hairstyle(image_path: str, landmarks_path: str,
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     h, w = img_rgb.shape[:2]
 
-    # Load face landmarks
-    with open(landmarks_path) as f:
-        lm_data = json.load(f)
+    # Determine face bounding box — prefer ADF face-keys, fall back to kanosawa
+    face_top = face_bottom = face_left = face_right = None
 
-    if not lm_data or not lm_data[0].get("landmarks"):
-        return {"matched_preset": None, "confidence": 0, "reason": "no landmarks found"}
+    if face_keys_path and Path(face_keys_path).exists():
+        with open(face_keys_path) as f:
+            fk_data = json.load(f)
+        bbox = _face_bbox_from_adf(fk_data.get("adf_landmarks"))
+        if bbox:
+            face_top, face_bottom, face_left, face_right = bbox
 
-    landmarks = lm_data[0]["landmarks"]
-    lm_array = np.array(landmarks)
-    face_top = int(np.min(lm_array[:, 1]))
-    face_bottom = int(np.max(lm_array[:, 1]))
-    face_left = int(np.min(lm_array[:, 0]))
-    face_right = int(np.max(lm_array[:, 0]))
+    if face_top is None and landmarks_path and Path(landmarks_path).exists():
+        with open(landmarks_path) as f:
+            lm_data = json.load(f)
+        if lm_data and lm_data[0].get("landmarks"):
+            landmarks = lm_data[0]["landmarks"]
+            lm_array = np.array(landmarks)
+            face_top = int(np.min(lm_array[:, 1]))
+            face_bottom = int(np.max(lm_array[:, 1]))
+            face_left = int(np.min(lm_array[:, 0]))
+            face_right = int(np.max(lm_array[:, 0]))
+
+    if face_top is None:
+        return {"matched_preset": None, "confidence": 0, "reason": "no face landmarks found"}
+
     face_cx = (face_left + face_right) // 2
     face_height = face_bottom - face_top
 
@@ -319,13 +344,15 @@ def analyze_hairstyle(image_path: str, landmarks_path: str,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
-    parser.add_argument("--landmarks", required=True)
+    parser.add_argument("--landmarks", default=None, help="Kanosawa landmarks JSON")
+    parser.add_argument("--face-keys", default=None, help="ADF face-keys JSON (preferred over landmarks)")
     parser.add_argument("--features", default=None, help="Gemini features JSON (optional)")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
     print(f"헤어스타일 분석 중: {args.image}")
-    result = analyze_hairstyle(args.image, args.landmarks, args.features)
+    result = analyze_hairstyle(args.image, args.landmarks, args.features,
+                               face_keys_path=getattr(args, 'face_keys', None))
 
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)

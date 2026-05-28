@@ -151,13 +151,19 @@ def extract_features_full(
 def visualize_landmarks(
     image,
     save_path: "str | None" = None,
+    kps_list: "list | None" = None,
 ) -> Image.Image:
-    img_bgr        = _to_bgr(image)
-    img_path, _tmp = _ensure_path(image, img_bgr)
-    groups, face_bbox, _ = _run_adf(img_bgr, img_path)
-    if _tmp:
-        try: os.unlink(_tmp)
-        except OSError: pass
+    img_bgr = _to_bgr(image)
+    face_bbox = None
+    if kps_list is not None:
+        lm_px = [(float(p[0]), float(p[1])) for p in kps_list]
+        groups = {r: [lm_px[i] for i in idx] for r, idx in ADF_KP_GROUPS.items()}
+    else:
+        img_path, _tmp = _ensure_path(image, img_bgr)
+        groups, face_bbox, _ = _run_adf(img_bgr, img_path)
+        if _tmp:
+            try: os.unlink(_tmp)
+            except OSError: pass
     if groups is None:
         return Image.fromarray(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB))
 

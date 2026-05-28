@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { WebGLCheck } from '@/components/viewer/WebGLCheck';
 import { MorphTargetSlider } from '@/components/editor/MorphTargetSlider';
 import { CollapsibleSection } from '@/components/editor/CollapsibleSection';
@@ -17,6 +17,9 @@ import { ViewerToolbar } from '@/components/viewer/ViewerToolbar';
 import { useEditorStore } from '@/stores/editorStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useCanvasScreenshot } from '@/hooks/useCanvasScreenshot';
+import { useVersionSync } from '@/hooks/useVersionSync';
+import { useAPI } from '@/lib/api';
+import { TEMPLATES } from '@/data/templates';
 import type { DetectedMaterial } from '@/lib/vrm/materials';
 import type { TemplateMetadata } from '@/types/template';
 import { recommendHairPreset } from '@/lib/hair-matching';
@@ -158,7 +161,29 @@ export default function DevViewerPage() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [currentTemplateId, setCurrentTemplateId] = useState<string | null>('customizable-default');
   const [sidebarWidth, setSidebarWidth] = useState(340);
+  const [apiTemplates, setApiTemplates] = useState<TemplateMetadata[]>(TEMPLATES);
   const isResizing = useRef(false);
+
+  const api = useAPI();
+  const { loadVersionsFromServer } = useVersionSync();
+
+  // Fetch templates from backend
+  useEffect(() => {
+    let cancelled = false;
+    api.template.listTemplates().then((templates) => {
+      if (!cancelled && templates.length > 0) {
+        setApiTemplates(templates);
+      }
+    }).catch((e) => {
+      console.warn('Failed to fetch templates from server, using static fallback:', e);
+    });
+    return () => { cancelled = true; };
+  }, [api]);
+
+  // Load versions from backend on mount
+  useEffect(() => {
+    loadVersionsFromServer();
+  }, [loadVersionsFromServer]);
 
   const resetAll = useEditorStore((s) => s.resetAll);
   const undo = useEditorStore((s) => s.undo);
@@ -415,6 +440,7 @@ export default function DevViewerPage() {
                 <TemplateSelector
                   currentTemplateId={currentTemplateId}
                   onSelect={handleTemplateSelect}
+                  templates={apiTemplates}
                 />
               </div>
             )}
