@@ -29,40 +29,52 @@ from .geometry import (
 # ── Calibration ranges ────────────────────────────────────────────────────────
 # Single source of truth — imported by calibrate_keys.py / calibrate_keys_front_render.py
 SIGNED_CALIBRATION = {
-    "Eye_Width":       (0.2065, 0.2888),
-    "Eye_WidthV":      (0.0149, 0.2407),
-    "Eye_Height":      (0.4874, 0.8451),
-    "Eye_Dist":        (0.3110, 0.4119),
-    "Eye_Rot":         (-0.1731, 0.1461),
-    "Eye_FrontHeight": (-0.2306, 0.1219),
-    "Eye_TailHeight":  (-0.1219, 0.2306),
-    "Eye_PupilWidth":  (0.0149, 0.2407),   # proxy = Eye_WidthV
-    "Eye_PupilWidthV": (0.0149, 0.2407),   # proxy = Eye_WidthV
-    "Brow_Dist":       (0.1718, 0.5145),
-    "Brow_Height":     (0.7209, 1.0771),
-    "Brow_Width":      (0.2192, 0.3925),
-    "Brow_Rot":        (-0.3266, 0.2589),
+    "Eye_Width":       (0.2054, 0.2839),
+    "Eye_WidthV":      (0.0860, 0.2436),
+    "Eye_Height":      (0.5235, 0.6993),
+    "Eye_Dist":        (0.3226, 0.4088),
+    "Eye_Rot":         (-0.1348, 0.1408),
+    "Eye_FrontHeight": (-0.2545, 0.1006),
+    "Eye_TailHeight":  (-0.1006, 0.2545),
+    "Eye_PupilWidth":  (0.0860, 0.2436),   # proxy = Eye_WidthV
+    "Eye_PupilWidthV": (0.0860, 0.2436),   # proxy = Eye_WidthV
+    "Brow_Dist":       (0.2309, 0.4115),
+    "Brow_Height":     (0.8039, 0.9859),
+    "Brow_Width":      (0.1689, 0.4044),
+    "Brow_Rot":        (-0.2850, 0.2819),
     "Nose_Height":     (-0.0172, 0.1440),  # depth-based (renders only)
-    "Nose_UnderNose":  (0.0979, 0.2109),
-    "Mouth_Width":     (0.1581, 0.4615),
-    "Mouth_Height":    (0.2488, 0.5108),
-    "Mouth_Corner":    (-0.0294, 0.1035),
+    "Nose_UnderNose":  (0.1096, 0.2262),
+    "Mouth_Width":     (0.1541, 0.3704),
+    "Mouth_Height":    (0.2790, 0.4066),
+    "Mouth_Corner":    (0.0053, 0.0607),
 }
 
 MAP01_CALIBRATION = {
-    "Face_Cheek":       (0.1605, 0.3250),
-    "Face_ChinWidth":   (0.6750, 0.8395),
-    "Face_JawLine":     (0.1736, 0.7445),
-    "Face_Roundness":   (0.0650, 0.7351),
-    "Eye_FrontFlat":    (-0.0166, 0.6351),  # inner gap / eye_width ratio
-    "Eye_TopLidFlat":   (-0.0053, 0.4417),
-    "Eye_LowerLidFlat": (-0.0270, 0.8230),
-    "Eye_TopLidDown":   (-0.0376, 1.0010),  # raw = opening (before inversion)
-    "Eye_LowerLidUp":   (-0.0376, 1.0010),  # proxy = Eye_TopLidDown
+    "Face_Cheek":       (0.1990, 0.3094),
+    "Face_ChinWidth":   (0.7100, 0.8010),  # shifted up: anime renders rarely go below 0.71
+    "Face_JawLine":     (0.2432, 0.5695),
+    "Face_Roundness":   (0.0042, 0.0397),
+    "Eye_FrontFlat":    (0.0982, 0.6729),  # inner gap / eye_width ratio
+    "Eye_TopLidFlat":   (0.2090, 0.6705),
+    "Eye_LowerLidFlat": (0.4904, 0.7436),
+    "Eye_TopLidDown":   (0.2070, 1.0598),  # raw = opening (before inversion)
+    "Eye_LowerLidUp":   (0.2070, 1.0598),  # proxy = Eye_TopLidDown
 }
 
 _SC = SIGNED_CALIBRATION
 _MC = MAP01_CALIBRATION
+
+_FACE_JAWLINE_GAMMA = 0.40
+_FACE_ROUNDNESS_GAMMA = 2.50
+_FACE_CHINWIDTH_GAMMA = 2.00
+_FACE_CHEEK_GAMMA = 2.00
+_FACE_JAWLINE_WEIGHTS = {"chin_angle": 0.20, "chin_width": 0.35, "chin_depth": 0.45}
+_FACE_ROUNDNESS_WEIGHTS = {"width_height": 0.25, "chin_angle": 0.05, "chin_depth": 0.15}
+
+
+def _curve_01(value: float, gamma: float) -> float:
+    value = float(max(0.0, min(1.0, value)))
+    return float(value ** gamma)
 
 
 def compute_avatar_keys(
@@ -153,7 +165,7 @@ def compute_avatar_keys(
     R_rot_slope = (float(R_outer[1]) - float(R_inner[1])) / max(R_eye_w, _EPS)
     L_rot_slope = (float(L_outer[1]) - float(L_inner[1])) / max(L_eye_w, _EPS)
     _rv = (R_rot_slope + L_rot_slope) / 2.0
-    Eye_Rot = float(max(-1.0, min(1.0, _rv / 0.35)))
+    Eye_Rot = _map_signed(_rv, *_SC["Eye_Rot"])
     if _raw_out is not None: _raw_out["Eye_Rot"] = _rv
 
     R_mid_y = float(R_center[1])
@@ -180,17 +192,21 @@ def compute_avatar_keys(
     Eye_FrontFlat = _map_01(_rv, *_MC["Eye_FrontFlat"])
     if _raw_out is not None: _raw_out["Eye_FrontFlat"] = _rv
 
-    Eye_TopLidFlat = float(
+    _rv = float(
         (_lid_flatness(R_left_corner, R_right_corner, R_eye_mid_u, R_eye_h)
          + _lid_flatness(L_left_corner, L_right_corner, L_eye_mid_u, L_eye_h)) / 2.0
     )
-    Eye_LowerLidFlat = float(
+    Eye_TopLidFlat = _map_01(_rv, *_MC["Eye_TopLidFlat"])
+    _top_lid_flat_raw = _rv
+
+    _rv = float(
         (_lid_flatness(R_left_corner, R_right_corner, R_eye_mid_l, R_eye_h)
          + _lid_flatness(L_left_corner, L_right_corner, L_eye_mid_l, L_eye_h)) / 2.0
     )
+    Eye_LowerLidFlat = _map_01(_rv, *_MC["Eye_LowerLidFlat"])
     if _raw_out is not None:
-        _raw_out["Eye_TopLidFlat"]   = Eye_TopLidFlat
-        _raw_out["Eye_LowerLidFlat"] = Eye_LowerLidFlat
+        _raw_out["Eye_TopLidFlat"]   = _top_lid_flat_raw
+        _raw_out["Eye_LowerLidFlat"] = _rv
 
     # Eye_TopLidDown: pupil center 기준 (detect 성공 시), ADF mid-lid fallback
     if manual is not None:
@@ -204,8 +220,8 @@ def compute_avatar_keys(
         L_center_opening = d(L_eye_mid_u, L_eye_mid_l) / max(L_eye_w, _EPS)
         opening = (R_center_opening + L_center_opening) / 2.0
     if _raw_out is not None: _raw_out["Eye_TopLidDown"] = opening
-    Eye_TopLidDown = float(max(0.0, min(1.0, (0.75 - opening) / 0.50)) * 0.75)
-    Eye_LowerLidUp = Eye_TopLidDown
+    Eye_TopLidDown = 1.0 - _map_01(opening, *_MC["Eye_TopLidDown"])
+    Eye_LowerLidUp = 1.0 - _map_01(opening, *_MC["Eye_LowerLidUp"])
     if _raw_out is not None: _raw_out["Eye_LowerLidUp"] = opening
 
     # Eye_PupilWidth/V: radius is unreliable, so use Eye_WidthV as the intentional proxy.
@@ -237,7 +253,7 @@ def compute_avatar_keys(
     R_brow_slope = (float(R_brow_outer[1]) - float(R_brow_inner[1])) / max(R_brow_w, _EPS)
     L_brow_slope = (float(L_brow_outer[1]) - float(L_brow_inner[1])) / max(L_brow_w, _EPS)
     _rv = (R_brow_slope + L_brow_slope) / 2.0
-    Brow_Rot = float(max(-1.0, min(1.0, _rv / 0.50)))
+    Brow_Rot = _map_signed(_rv, *_SC["Brow_Rot"])
     if _raw_out is not None: _raw_out["Brow_Rot"] = _rv
 
     _rv = (R_brow_w + L_brow_w) / 2.0 / face_scale
@@ -296,47 +312,63 @@ def compute_avatar_keys(
     angle_score = float(max(0.0, min(1.0, (130.0 - chin_angle)      / (130.0 - 80.0))))
     width_score = float(max(0.0, min(1.0, (0.85 - chin_width_ratio) / (0.85 - 0.65))))
     depth_score = float(max(0.0, min(1.0, (chin_depth_ratio - 0.08) / (0.25 - 0.08))))
-    if depth is None:
-        # 2D: depth 항 제외, 나머지 두 항으로 정규화
-        Face_JawLine = float(max(0.0, min(1.0,
-            (0.5 * angle_score + 0.3 * width_score) / 0.80
-        )))
-    else:
-        Face_JawLine = float(max(0.0, min(1.0,
-            0.5 * angle_score + 0.3 * width_score + 0.2 * depth_score
-        )))
-    jawline_base = Face_JawLine
-    Face_JawLine = float(min(1.0, jawline_base * 2.00))
+    jawline_base = float(max(0.0, min(1.0,
+        _FACE_JAWLINE_WEIGHTS["chin_angle"] * angle_score
+        + _FACE_JAWLINE_WEIGHTS["chin_width"] * width_score
+        + _FACE_JAWLINE_WEIGHTS["chin_depth"] * depth_score
+    )))
+    jawline_norm = _map_01(jawline_base, *_MC["Face_JawLine"])
+    Face_JawLine = _curve_01(jawline_norm, _FACE_JAWLINE_GAMMA)
 
     _rv = float((face_width - jaw_width) / max(face_width, _EPS))
-    Face_Cheek = _map_01(_rv, *_MC["Face_Cheek"])
-    Face_Cheek = 0.0
-    if _raw_out is not None: _raw_out["Face_Cheek"] = _rv
+    cheek_norm = _map_01(_rv, *_MC["Face_Cheek"])
+    Face_Cheek = _curve_01(cheek_norm, _FACE_CHEEK_GAMMA)
+    if _raw_out is not None:
+        _raw_out["Face_Cheek"] = {
+            "value": _rv,
+            "calibrated": cheek_norm,
+            "adjusted": Face_Cheek,
+            "visual_gamma": _FACE_CHEEK_GAMMA,
+        }
 
     _r_wh = _map_01(width_height_ratio, 1.5, 2.5)
     _r_ca = _map_01(chin_angle, 80.0, 140.0)
     _r_cd = 1.0 - _map_01(chin_depth_ratio, 0.08, 0.25)
-    round_w_wh = 0.45
-    round_w_ca = 0.10
-    round_w_cd = 0.25
-    if depth is None:
-        roundness_base = float(max(0.0, min(1.0, round_w_wh * _r_wh + round_w_ca * _r_ca)))
-    else:
-        roundness_base = float(max(0.0, min(1.0, round_w_wh * _r_wh + round_w_ca * _r_ca + round_w_cd * _r_cd)))
-    Face_Roundness = float(max(0.0, roundness_base * 0.12))
+    round_w_wh = _FACE_ROUNDNESS_WEIGHTS["width_height"]
+    round_w_ca = _FACE_ROUNDNESS_WEIGHTS["chin_angle"]
+    round_w_cd = _FACE_ROUNDNESS_WEIGHTS["chin_depth"]
+    roundness_base = float(max(0.0, min(1.0, round_w_wh * _r_wh + round_w_ca * _r_ca + round_w_cd * _r_cd)))
+    roundness_raw = float(max(0.0, roundness_base * 0.12))
+    roundness_norm = _map_01(roundness_raw, *_MC["Face_Roundness"])
+    Face_Roundness = _curve_01(roundness_norm, _FACE_ROUNDNESS_GAMMA)
 
     _rv = chin_width_ratio
-    chin_width_base = _map_01(_rv, *_MC["Face_ChinWidth"])
-    Face_ChinWidth = float(max(0.0, min(1.0, 0.16 * chin_width_base)))
-    if _raw_out is not None: _raw_out["Face_ChinWidth"] = _rv
+    chin_width_norm = _map_01(_rv, *_MC["Face_ChinWidth"])
+    Face_ChinWidth = _curve_01(chin_width_norm, _FACE_CHINWIDTH_GAMMA)
+    if _raw_out is not None:
+        _raw_out["Face_ChinWidth"] = {
+            "value": _rv,
+            "calibrated": chin_width_norm,
+            "adjusted": Face_ChinWidth,
+            "visual_gamma": _FACE_CHINWIDTH_GAMMA,
+        }
 
     if _raw_out is not None:
         _raw_out["Face_JawLine"] = {
             "value": jawline_base,
+            "calibrated": jawline_norm,
             "adjusted": Face_JawLine,
+            "visual_gamma": _FACE_JAWLINE_GAMMA,
+            "weights": _FACE_JAWLINE_WEIGHTS,
+            "chin_angle": round(angle_score, 4),
+            "chin_width": round(width_score, 4),
+            "chin_depth": round(depth_score, 4),
         }
         _raw_out["Face_Roundness"] = {
-            "value": Face_Roundness,
+            "value": roundness_raw,
+            "calibrated": roundness_norm,
+            "adjusted": Face_Roundness,
+            "visual_gamma": _FACE_ROUNDNESS_GAMMA,
             "measured": roundness_base,
             "weights": {"width_height": round_w_wh, "chin_angle": round_w_ca, "chin_depth": round_w_cd},
             "width_height": round(_r_wh, 4),
