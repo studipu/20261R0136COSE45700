@@ -50,9 +50,9 @@ SIGNED_CALIBRATION = {
 }
 
 MAP01_CALIBRATION = {
-    "Face_Cheek":       (1.300, 2.400),  # face width/height ratio proxy (round face=high, V-jaw=low)
+    "Face_Cheek":       (1.450, 1.800),  # lo raised: V-jaw→0, round face→0.5
     "Face_ChinWidth":   (0.6200, 0.8200),  # chin_angle-weighted metric range
-    "Face_JawLine":     (0.2432, 0.5695),
+    "Face_JawLine":     (0.2432, 0.5000),  # hi lowered: sharp face→1.0
     "Face_Roundness":   (0.0042, 0.0397),
     "Eye_FrontFlat":    (0.0982, 0.6729),  # inner gap / eye_width ratio
     "Eye_TopLidFlat":   (0.2090, 0.6705),
@@ -65,8 +65,8 @@ _SC = SIGNED_CALIBRATION
 _MC = MAP01_CALIBRATION
 
 _FACE_JAWLINE_GAMMA = 0.40
-_FACE_ROUNDNESS_GAMMA = 2.30
-_FACE_CHINWIDTH_GAMMA = 3.00
+_FACE_ROUNDNESS_GAMMA = 1.75
+_FACE_CHINWIDTH_GAMMA = 1.50
 _FACE_CHEEK_GAMMA = 2.50
 _FACE_JAWLINE_WEIGHTS = {"chin_angle": 0.20, "chin_width": 0.35, "chin_depth": 0.45}
 _FACE_ROUNDNESS_WEIGHTS = {"width_height": 0.25, "chin_angle": 0.05, "chin_depth": 0.15}
@@ -320,7 +320,7 @@ def compute_avatar_keys(
     jawline_norm = _map_01(jawline_base, *_MC["Face_JawLine"])
     Face_JawLine = _curve_01(jawline_norm, _FACE_JAWLINE_GAMMA)
 
-    _rv = float(width_height_ratio)  # round face=high ratio, V-jaw=low ratio
+    _rv = float(width_height_ratio * (jaw_width / max(face_width, _EPS)))  # round+wide jaw=high, V-jaw=low
     cheek_norm = _map_01(_rv, *_MC["Face_Cheek"])
     Face_Cheek = _curve_01(cheek_norm, _FACE_CHEEK_GAMMA)
     if _raw_out is not None:
@@ -344,7 +344,7 @@ def compute_avatar_keys(
 
     # chin_angle도 반영: 예리한 각도(V라인)일수록 effective width를 낮춤
     chin_angle_factor = float(max(0.0, min(1.0, (chin_angle - 85.0) / (125.0 - 85.0))))
-    _rv = chin_width_ratio * (0.65 + 0.35 * chin_angle_factor)
+    _rv = chin_width_ratio * (0.55 + 0.45 * chin_angle_factor)
     chin_width_norm = _map_01(_rv, *_MC["Face_ChinWidth"])
     Face_ChinWidth = _curve_01(chin_width_norm, _FACE_CHINWIDTH_GAMMA)
     if _raw_out is not None:
