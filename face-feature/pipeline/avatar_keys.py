@@ -51,7 +51,7 @@ SIGNED_CALIBRATION = {
 
 MAP01_CALIBRATION = {
     "Face_Cheek":       (1.300, 2.400),  # face width/height ratio proxy (round face=high, V-jaw=low)
-    "Face_ChinWidth":   (0.7100, 0.8010),  # shifted up: anime renders rarely go below 0.71
+    "Face_ChinWidth":   (0.6200, 0.8200),  # chin_angle-weighted metric range
     "Face_JawLine":     (0.2432, 0.5695),
     "Face_Roundness":   (0.0042, 0.0397),
     "Eye_FrontFlat":    (0.0982, 0.6729),  # inner gap / eye_width ratio
@@ -342,7 +342,9 @@ def compute_avatar_keys(
     roundness_norm = _map_01(roundness_raw, *_MC["Face_Roundness"])
     Face_Roundness = _curve_01(roundness_norm, _FACE_ROUNDNESS_GAMMA)
 
-    _rv = chin_width_ratio
+    # chin_angle도 반영: 예리한 각도(V라인)일수록 effective width를 낮춤
+    chin_angle_factor = float(max(0.0, min(1.0, (chin_angle - 85.0) / (125.0 - 85.0))))
+    _rv = chin_width_ratio * (0.65 + 0.35 * chin_angle_factor)
     chin_width_norm = _map_01(_rv, *_MC["Face_ChinWidth"])
     Face_ChinWidth = _curve_01(chin_width_norm, _FACE_CHINWIDTH_GAMMA)
     if _raw_out is not None:
