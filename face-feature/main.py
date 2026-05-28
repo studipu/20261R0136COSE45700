@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob as _glob
 import json
 import os
 import sys
@@ -41,6 +42,7 @@ from pipeline import (
     extract_features,
     run_pipeline,
     visualize_landmarks,
+    visualize_measurements,
 )
 
 
@@ -91,11 +93,78 @@ def cmd_extract(args):
 
 def cmd_debug(args):
     image_path = _resolve_image_arg(args.image)
-    save_path = str(Path(args.output) / "landmarks_debug.png")
-    Path(args.output).mkdir(parents=True, exist_ok=True)
-    image = visualize_landmarks(image_path, save_path=save_path)
+    out_dir = Path(args.output) / Path(image_path).stem
+    out_dir.mkdir(parents=True, exist_ok=True)
+    save_path = str(out_dir / "landmarks_debug.png")
+    visualize_landmarks(image_path, save_path=save_path)
     print(f"[Debug] landmark visualization saved: {save_path}")
-    return image
+
+
+def cmd_measure(args):
+    image_path = _resolve_image_arg(args.image)
+    out_dir = Path(args.output) / Path(image_path).stem
+    out_dir.mkdir(parents=True, exist_ok=True)
+    save_path = str(out_dir / "measurements_debug.png")
+    visualize_measurements(image_path, save_path=save_path)
+    print(f"[Measure] measurement visualization saved: {save_path}")
+
+
+def cmd_batch_measure(args):
+    images = _resolve_image_args(args.images)
+    print(f"[BatchMeasure] {len(images)} images")
+    ok, fail = 0, 0
+    for image_path in images:
+        out_dir = _unique_out_dir(image_path, args.output)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        save_path = str(out_dir / "measurements_debug.png")
+        try:
+            visualize_measurements(image_path, save_path=save_path)
+            print(f"  OK   {image_path} -> {save_path}")
+            ok += 1
+        except Exception as exc:
+            print(f"  FAIL {image_path} -> {exc}")
+            fail += 1
+    print(f"\n[BatchMeasure] done: {ok} OK, {fail} failed")
+
+
+def _unique_out_dir(image_path: str, output_base: str) -> Path:
+    """output_base 하위에 있으면 바로 아래 폴더명 사용, 아니면 stem 사용."""
+    p = Path(image_path)
+    base = Path(output_base)
+    try:
+        rel = p.resolve().relative_to(base.resolve())
+        return base / rel.parts[0]
+    except ValueError:
+        return base / p.stem
+
+
+def _viz_one(image_path: str, out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    visualize_landmarks(image_path, save_path=str(out_dir / "landmarks_debug.png"))
+    visualize_measurements(image_path, save_path=str(out_dir / "measurements_debug.png"))
+
+
+def cmd_viz(args):
+    image_path = _resolve_image_arg(args.image)
+    out_dir = _unique_out_dir(image_path, args.output)
+    _viz_one(image_path, out_dir)
+    print(f"[Viz] saved: {out_dir}/")
+
+
+def cmd_batch_viz(args):
+    images = _resolve_image_args(args.images)
+    print(f"[BatchViz] {len(images)} images")
+    ok, fail = 0, 0
+    for image_path in images:
+        out_dir = _unique_out_dir(image_path, args.output)
+        try:
+            _viz_one(image_path, out_dir)
+            print(f"  OK   {image_path} -> {out_dir}/")
+            ok += 1
+        except Exception as exc:
+            print(f"  FAIL {image_path} -> {exc}")
+            fail += 1
+    print(f"\n[BatchViz] done: {ok} OK, {fail} failed")
 
 
 def cmd_batch_run(args):
@@ -338,6 +407,13 @@ def _resolve_image_args(image_args: list[str]) -> list[str]:
     resolved: list[str] = []
 
     for image_arg in image_args:
+        if "*" in image_arg or "?" in image_arg:
+            matches = sorted(_glob.glob(image_arg, recursive=True))
+            for m in matches:
+                p = Path(m)
+                if p.is_file() and p.suffix.lower() in ALLOWED_IMAGE_SUFFIXES:
+                    resolved.append(str(p))
+            continue
         path = Path(image_arg)
         if path.is_dir():
             sample_dirs = sorted(
@@ -392,6 +468,18 @@ def main():
     p_dbg = sub.add_parser("debug", help="visualize landmarks")
     p_dbg.add_argument("--image", required=True, help="image path or sample input directory")
 
+    p_mea = sub.add_parser("measure", help="visualize measurement lines and computed values")
+    p_mea.add_argument("--image", required=True, help="image path or sample input directory")
+
+    p_bmea = sub.add_parser("batch-measure", help="visualize measurements for many images")
+    p_bmea.add_argument("--images", nargs="+", required=True, help="image paths, directories, or samples root")
+
+    p_viz = sub.add_parser("viz", help="visualize landmarks + measurements (both) for one image")
+    p_viz.add_argument("--image", required=True, help="image path or sample input directory")
+
+    p_bviz = sub.add_parser("batch-viz", help="visualize landmarks + measurements for many images")
+    p_bviz.add_argument("--images", nargs="+", required=True, help="image paths, directories, or samples root")
+
     args = parser.parse_args()
 
     if args.command == "run":
@@ -404,6 +492,14 @@ def main():
         cmd_batch(args)
     elif args.command == "debug":
         cmd_debug(args)
+    elif args.command == "measure":
+        cmd_measure(args)
+    elif args.command == "batch-measure":
+        cmd_batch_measure(args)
+    elif args.command == "viz":
+        cmd_viz(args)
+    elif args.command == "batch-viz":
+        cmd_batch_viz(args)
 
 
 if __name__ == "__main__":

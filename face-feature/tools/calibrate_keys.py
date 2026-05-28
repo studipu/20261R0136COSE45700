@@ -38,7 +38,7 @@ OBSERVE_KEYS = [
     "Face_Roundness",
 ]
 
-ALL_RAW_KEYS = list(SIGNED_KEYS) + list(MAP01_KEYS) + OBSERVE_KEYS
+ALL_RAW_KEYS = list(dict.fromkeys(list(SIGNED_KEYS) + list(MAP01_KEYS) + OBSERVE_KEYS))
 
 
 def _coerce_raw_value(value):
@@ -92,18 +92,22 @@ def extract_raw(image_path: Path) -> "dict | None":
     return raw_out
 
 
-def percentile_range(values: list, p_lo: float = 10.0, p_hi: float = 90.0):
+def calibrated_range(values: list, range_mode: str, p_lo: float = 10.0, p_hi: float = 90.0):
     arr = np.array(values)
-    return float(np.percentile(arr, p_lo)), float(np.percentile(arr, p_hi))
+    if range_mode == "percentile":
+        return float(np.percentile(arr, p_lo)), float(np.percentile(arr, p_hi))
+    return float(arr.min()), float(arr.max())
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default="output_test/calibration_log.txt")
+    parser.add_argument("--range-mode", choices=("minmax", "percentile"), default="minmax",
+                        help="lo/hi source: minmax for curated valid samples, percentile for noisy batches")
     parser.add_argument("--p-lo", type=float, default=10.0, dest="p_lo",
-                        help="lower percentile for lo bound (default 10)")
+                        help="lower percentile for lo bound when --range-mode percentile")
     parser.add_argument("--p-hi", type=float, default=90.0, dest="p_hi",
-                        help="upper percentile for hi bound (default 90)")
+                        help="upper percentile for hi bound when --range-mode percentile")
     args = parser.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -122,7 +126,9 @@ def main():
     log(f"Avatar Key Calibration Run")
     log(f"Timestamp : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     log(f"Images    : {len(images)}")
-    log(f"Percentile: p{args.p_lo:.0f} / p{args.p_hi:.0f}")
+    log(f"Range mode: {args.range_mode}")
+    if args.range_mode == "percentile":
+        log(f"Percentile: p{args.p_lo:.0f} / p{args.p_hi:.0f}")
     log("=" * 70)
 
     # ── Per-image collection ─────────────────────────────────────────────
@@ -178,7 +184,10 @@ def main():
     # ── Recommended lo/hi ────────────────────────────────────────────────
     log()
     log("=" * 70)
-    log(f"Recommended lo/hi  (p{args.p_lo:.0f}/p{args.p_hi:.0f} of collected data)")
+    if args.range_mode == "percentile":
+        log(f"Recommended lo/hi  (p{args.p_lo:.0f}/p{args.p_hi:.0f} of collected data)")
+    else:
+        log("Recommended lo/hi  (min/max of collected data)")
     log("Paste into compute_avatar_keys in feature_extractor.py")
     log("=" * 70)
 
@@ -189,7 +198,7 @@ def main():
             log(f"  # {k}: insufficient data ({len(vals)} samples) — keep current ({cur_lo}, {cur_hi})")
             rec[k] = (cur_lo, cur_hi)
             continue
-        lo, hi = percentile_range(vals, args.p_lo, args.p_hi)
+        lo, hi = calibrated_range(vals, args.range_mode, args.p_lo, args.p_hi)
         # Add 10% margin
         span = hi - lo
         lo_m = round(lo - 0.05 * span, 4)

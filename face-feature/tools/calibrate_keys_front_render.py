@@ -38,7 +38,7 @@ OBSERVE_KEYS = [
     "Face_Roundness",
 ]
 
-ALL_RAW_KEYS = list(SIGNED_KEYS) + list(MAP01_KEYS) + OBSERVE_KEYS
+ALL_RAW_KEYS = list(dict.fromkeys(list(SIGNED_KEYS) + list(MAP01_KEYS) + OBSERVE_KEYS))
 
 
 def _coerce_raw_value(value):
@@ -82,9 +82,16 @@ def extract_raw(image_path: Path) -> "dict | None":
     return raw_out
 
 
-def percentile_range(values: list[float], p_lo: float = 10.0, p_hi: float = 90.0) -> tuple[float, float]:
+def calibrated_range(
+    values: list[float],
+    range_mode: str,
+    p_lo: float = 10.0,
+    p_hi: float = 90.0,
+) -> tuple[float, float]:
     arr = np.array(values)
-    return float(np.percentile(arr, p_lo)), float(np.percentile(arr, p_hi))
+    if range_mode == "percentile":
+        return float(np.percentile(arr, p_lo)), float(np.percentile(arr, p_hi))
+    return float(arr.min()), float(arr.max())
 
 
 def main():
@@ -94,6 +101,12 @@ def main():
         "--render-root",
         default="output",
         help="root folder that contains per-sample renders or a single renders/ directory",
+    )
+    parser.add_argument(
+        "--range-mode",
+        choices=("minmax", "percentile"),
+        default="minmax",
+        help="lo/hi source: minmax for curated valid samples, percentile for noisy batches",
     )
     parser.add_argument("--p-lo", type=float, default=10.0, dest="p_lo")
     parser.add_argument("--p-hi", type=float, default=90.0, dest="p_hi")
@@ -117,7 +130,9 @@ def main():
     log(f"Timestamp  : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     log(f"Render root: {args.render_root}")
     log(f"Images     : {len(images)}")
-    log(f"Percentile : p{args.p_lo:.0f} / p{args.p_hi:.0f}")
+    log(f"Range mode : {args.range_mode}")
+    if args.range_mode == "percentile":
+        log(f"Percentile : p{args.p_lo:.0f} / p{args.p_hi:.0f}")
     log("=" * 70)
 
     collected: dict[str, list[float]] = {k: [] for k in ALL_RAW_KEYS}
@@ -177,7 +192,10 @@ def main():
 
     log()
     log("=" * 70)
-    log(f"Recommended lo/hi  (p{args.p_lo:.0f}/p{args.p_hi:.0f} of collected data)")
+    if args.range_mode == "percentile":
+        log(f"Recommended lo/hi  (p{args.p_lo:.0f}/p{args.p_hi:.0f} of collected data)")
+    else:
+        log("Recommended lo/hi  (min/max of collected data)")
     log("Paste into compute_avatar_keys in avatar_keys.py")
     log("=" * 70)
 
@@ -192,7 +210,7 @@ def main():
             rec[key] = (cur_lo, cur_hi)
             continue
 
-        lo, hi = percentile_range(vals, args.p_lo, args.p_hi)
+        lo, hi = calibrated_range(vals, args.range_mode, args.p_lo, args.p_hi)
         span = hi - lo
         lo_m = round(lo - 0.05 * span, 4)
         hi_m = round(hi + 0.05 * span, 4)
