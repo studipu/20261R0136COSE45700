@@ -50,7 +50,7 @@ SIGNED_CALIBRATION = {
 }
 
 MAP01_CALIBRATION = {
-    "Face_Cheek":       (0.1990, 0.3094),
+    "Face_Cheek":       (1.300, 2.400),  # face width/height ratio proxy (round face=high, V-jaw=low)
     "Face_ChinWidth":   (0.7100, 0.8010),  # shifted up: anime renders rarely go below 0.71
     "Face_JawLine":     (0.2432, 0.5695),
     "Face_Roundness":   (0.0042, 0.0397),
@@ -65,9 +65,9 @@ _SC = SIGNED_CALIBRATION
 _MC = MAP01_CALIBRATION
 
 _FACE_JAWLINE_GAMMA = 0.40
-_FACE_ROUNDNESS_GAMMA = 2.50
-_FACE_CHINWIDTH_GAMMA = 2.00
-_FACE_CHEEK_GAMMA = 2.00
+_FACE_ROUNDNESS_GAMMA = 2.30
+_FACE_CHINWIDTH_GAMMA = 3.00
+_FACE_CHEEK_GAMMA = 2.50
 _FACE_JAWLINE_WEIGHTS = {"chin_angle": 0.20, "chin_width": 0.35, "chin_depth": 0.45}
 _FACE_ROUNDNESS_WEIGHTS = {"width_height": 0.25, "chin_angle": 0.05, "chin_depth": 0.15}
 
@@ -320,7 +320,7 @@ def compute_avatar_keys(
     jawline_norm = _map_01(jawline_base, *_MC["Face_JawLine"])
     Face_JawLine = _curve_01(jawline_norm, _FACE_JAWLINE_GAMMA)
 
-    _rv = float((face_width - jaw_width) / max(face_width, _EPS))
+    _rv = float(width_height_ratio)  # round face=high ratio, V-jaw=low ratio
     cheek_norm = _map_01(_rv, *_MC["Face_Cheek"])
     Face_Cheek = _curve_01(cheek_norm, _FACE_CHEEK_GAMMA)
     if _raw_out is not None:

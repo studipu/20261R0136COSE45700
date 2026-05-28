@@ -161,12 +161,16 @@ def extract_features_with_pupils(
     manual = detect_pupils(img_bgr, kps_raw)
     raw_out: dict = {}
     avatar_keys = compute_avatar_keys(kps_raw, manual=manual, _raw_out=raw_out, depth=depth, img_shape=img_bgr.shape[:2])
-    face_cheek_2d_raw = raw_out.get("Face_Cheek")
+    face_cheek_2d_entry = raw_out.get("Face_Cheek")
 
     if _side_cheek_raw is not None:
         avatar_keys["Face_Cheek"] = 0.0
         raw_out["Face_Cheek"] = {"value": _side_cheek_raw, "source": "renderer/depth"}
     else:
-        raw_out["Face_Cheek"] = {"value": face_cheek_2d_raw, "source": "adf/2d_proxy"}
+        if isinstance(face_cheek_2d_entry, dict):
+            raw_out["Face_Cheek"] = {**face_cheek_2d_entry, "source": "adf/2d_proxy"}
+        else:
+            raw_out["Face_Cheek"] = {"value": face_cheek_2d_entry, "source": "adf/2d_proxy"}
+    raw_out["_adf_landmarks"] = [[float(p[0]), float(p[1])] for p in kps_raw]
 
     return fv, avatar_keys, raw_out
