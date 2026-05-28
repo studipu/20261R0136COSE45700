@@ -67,7 +67,7 @@ _MC = MAP01_CALIBRATION
 _FACE_JAWLINE_GAMMA = 0.40
 _FACE_ROUNDNESS_GAMMA = 1.75
 _FACE_CHINWIDTH_GAMMA = 1.50
-_FACE_CHEEK_GAMMA = 2.50
+_FACE_CHEEK_GAMMA = 1.50
 _FACE_JAWLINE_WEIGHTS = {"chin_angle": 0.20, "chin_width": 0.35, "chin_depth": 0.45}
 _FACE_ROUNDNESS_WEIGHTS = {"width_height": 0.25, "chin_angle": 0.05, "chin_depth": 0.15}
 
