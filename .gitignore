@@ -44,6 +44,17 @@ next-env.d.ts
 public/models/*.vrm
 public/models/*.blend
 
+# Python cache
+__pycache__/
+*.pyc
+
+# Large model checkpoints
+*.pth.tar
+*.pth
+
+# Hair GLB models (large binaries)
+public/models/hair/
+
 # Tool/IDE config
 .claude/
 .cursor/

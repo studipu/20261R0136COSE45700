@@ -1,0 +1,11 @@
+services:
+  adf-server:
+    build:
+      context: .
+      platforms:
+        - linux/amd64
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
