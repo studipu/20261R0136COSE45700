@@ -164,7 +164,7 @@ def extract_features_with_pupils(
     face_cheek_2d_raw = raw_out.get("Face_Cheek")
 
     if _side_cheek_raw is not None:
-        avatar_keys["Face_Cheek"] = _map_01(_side_cheek_raw, 0.25, 0.80)
+        avatar_keys["Face_Cheek"] = 0.0
         raw_out["Face_Cheek"] = {"value": _side_cheek_raw, "source": "renderer/depth"}
     else:
         raw_out["Face_Cheek"] = {"value": face_cheek_2d_raw, "source": "adf/2d_proxy"}

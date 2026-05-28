@@ -8,8 +8,8 @@ Keys with structural limitations (fixed/proxy values):
   Eye_TopLidDown / Eye_LowerLidUp : proxy (ADF 3-pt lid insufficient)
   Eye_PupilWidth / Eye_PupilWidthV: Eye_WidthV proxy (iris size is not reliable in ADF)
   Brow_WidthV                     : 0.0   (no brow thickness in ADF)
-  Nose_Width                      : 0.5   (no ala landmarks in ADF)
-  Nose_Height                     : depth-based only (renders); 0.0 default for 2D input
+  Nose_Width                      : 0.65  (no ala landmarks in ADF)
+  Nose_Height                     : depth-based with 0.25 visible baseline
   Face_Cheek                      : 2D contour proxy; side depth overrides it in Stage 4
 """
 
@@ -40,7 +40,7 @@ SIGNED_CALIBRATION = {
     "Eye_PupilWidthV": (0.0149, 0.2407),   # proxy = Eye_WidthV
     "Brow_Dist":       (0.1718, 0.5145),
     "Brow_Height":     (0.7209, 1.0771),
-    "Brow_Width":      (0.1860, 0.3925),
+    "Brow_Width":      (0.2192, 0.3925),
     "Brow_Rot":        (-0.3266, 0.2589),
     "Nose_Height":     (-0.0172, 0.1440),  # depth-based (renders only)
     "Nose_UnderNose":  (0.0979, 0.2109),
@@ -135,6 +135,8 @@ def compute_avatar_keys(
 
     _rv = (R_eye_h + L_eye_h) / 2.0 / face_scale
     Eye_WidthV = _map_signed(_rv, *_SC["Eye_WidthV"])
+    if Eye_WidthV > 0.0:
+        Eye_WidthV *= 0.75
     if _raw_out is not None: _raw_out["Eye_WidthV"] = _rv
 
     chin_y = float(F2[1])
@@ -168,6 +170,7 @@ def compute_avatar_keys(
          + (L_mid_y - float(L_outer[1])) / L_eye_h) / 2.0
     )
     Eye_TailHeight = _map_signed(_rv, *_SC["Eye_TailHeight"])
+    Eye_TailHeight = float(max(-1.0, min(1.0, Eye_TailHeight + 0.18 * (1.0 - max(0.0, Eye_TailHeight)))))
     if _raw_out is not None: _raw_out["Eye_TailHeight"] = _rv
 
     # inner corner vertical gap / eye_width — ratio-based, no degree units
@@ -201,7 +204,7 @@ def compute_avatar_keys(
         L_center_opening = d(L_eye_mid_u, L_eye_mid_l) / max(L_eye_w, _EPS)
         opening = (R_center_opening + L_center_opening) / 2.0
     if _raw_out is not None: _raw_out["Eye_TopLidDown"] = opening
-    Eye_TopLidDown = float(max(0.0, min(1.0, (0.75 - opening) / 0.50)))
+    Eye_TopLidDown = float(max(0.0, min(1.0, (0.75 - opening) / 0.50)) * 0.75)
     Eye_LowerLidUp = Eye_TopLidDown
     if _raw_out is not None: _raw_out["Eye_LowerLidUp"] = opening
 
@@ -226,6 +229,8 @@ def compute_avatar_keys(
     brow_mean_y = (float(R_brow_mid[1]) + float(L_brow_mid[1])) / 2.0
     _rv = (float(F2[1]) - brow_mean_y) / face_scale
     Brow_Height = _map_signed(_rv, *_SC["Brow_Height"])
+    if Brow_Height > 0.0:
+        Brow_Height *= 0.75
     if _raw_out is not None: _raw_out["Brow_Height"] = _rv
 
     # outer_y - inner_y: same semantic direction for both brows (mirror-sign fix)
@@ -237,6 +242,8 @@ def compute_avatar_keys(
 
     _rv = (R_brow_w + L_brow_w) / 2.0 / face_scale
     Brow_Width = _map_signed(_rv, *_SC["Brow_Width"])
+    if Brow_Width > 0.0:
+        Brow_Width *= 0.75
     if _raw_out is not None: _raw_out["Brow_Width"] = _rv
 
     Brow_WidthV = 0.0
@@ -247,9 +254,9 @@ def compute_avatar_keys(
     eye_y     = float(eye_center[1])
     mouth_y   = float(mouth_ctr[1])
 
-    Nose_Height = 0.0  # overridden by depth below; no reliable 2D fallback
+    Nose_Height = 0.25  # visible baseline; depth can raise it further
     if _raw_out is not None: _raw_out["Nose_Height"] = None
-    Nose_Width = 0.5
+    Nose_Width = 0.65
 
     _rv = (float(p(25)[1]) - float(N[1])) / face_scale
     Nose_UnderNose = _map_signed(_rv, *_SC["Nose_UnderNose"])
@@ -272,6 +279,8 @@ def compute_avatar_keys(
 
     _rv = (float(M_C[1]) - float((M_L[1] + M_R[1]) / 2.0)) / face_scale
     Mouth_Corner = _map_signed(_rv, *_SC["Mouth_Corner"])
+    if Mouth_Corner < 0.0:
+        Mouth_Corner *= 0.55
     if _raw_out is not None: _raw_out["Mouth_Corner"] = _rv
 
     # ── Section 8: Face keys (kp0-4) ─────────────────────────────────────
@@ -296,28 +305,40 @@ def compute_avatar_keys(
         Face_JawLine = float(max(0.0, min(1.0,
             0.5 * angle_score + 0.3 * width_score + 0.2 * depth_score
         )))
+    jawline_base = Face_JawLine
+    Face_JawLine = float(min(1.0, jawline_base * 2.00))
 
     _rv = float((face_width - jaw_width) / max(face_width, _EPS))
     Face_Cheek = _map_01(_rv, *_MC["Face_Cheek"])
+    Face_Cheek = 0.0
     if _raw_out is not None: _raw_out["Face_Cheek"] = _rv
 
     _r_wh = _map_01(width_height_ratio, 1.5, 2.5)
     _r_ca = _map_01(chin_angle, 80.0, 140.0)
     _r_cd = 1.0 - _map_01(chin_depth_ratio, 0.08, 0.25)
+    round_w_wh = 0.45
+    round_w_ca = 0.10
+    round_w_cd = 0.25
     if depth is None:
-        # 2D: depth 항 제외, 나머지 두 항으로 정규화
-        Face_Roundness = float(max(0.0, min(1.0, (0.45 * _r_wh + 0.35 * _r_ca) / 0.80)))
+        roundness_base = float(max(0.0, min(1.0, round_w_wh * _r_wh + round_w_ca * _r_ca)))
     else:
-        Face_Roundness = float(max(0.0, min(1.0, 0.45 * _r_wh + 0.35 * _r_ca + 0.20 * _r_cd)))
+        roundness_base = float(max(0.0, min(1.0, round_w_wh * _r_wh + round_w_ca * _r_ca + round_w_cd * _r_cd)))
+    Face_Roundness = float(max(0.0, roundness_base * 0.12))
 
     _rv = chin_width_ratio
-    Face_ChinWidth = _map_01(_rv, *_MC["Face_ChinWidth"])
+    chin_width_base = _map_01(_rv, *_MC["Face_ChinWidth"])
+    Face_ChinWidth = float(max(0.0, min(1.0, 0.16 * chin_width_base)))
     if _raw_out is not None: _raw_out["Face_ChinWidth"] = _rv
 
     if _raw_out is not None:
-        _raw_out["Face_JawLine"]   = Face_JawLine
+        _raw_out["Face_JawLine"] = {
+            "value": jawline_base,
+            "adjusted": Face_JawLine,
+        }
         _raw_out["Face_Roundness"] = {
             "value": Face_Roundness,
+            "measured": roundness_base,
+            "weights": {"width_height": round_w_wh, "chin_angle": round_w_ca, "chin_depth": round_w_cd},
             "width_height": round(_r_wh, 4),
             "chin_angle":   round(_r_ca, 4),
             "chin_depth":   round(_r_cd, 4),
@@ -328,7 +349,7 @@ def compute_avatar_keys(
         ih, iw = img_shape
         _d_nose, _ = _compute_depth_features(depth, kps, ih, iw)
         if _d_nose is not None:
-            Nose_Height = _map_signed(_d_nose, *_SC["Nose_Height"])
+            Nose_Height = max(0.25, _map_signed(_d_nose, *_SC["Nose_Height"]))
             if _raw_out is not None: _raw_out["Nose_Height"] = _d_nose
 
     return {

@@ -152,7 +152,7 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     ),
     "Nose_Width": _spec(
         value_range=(0.0, 1.0), domain="nose",
-        description="Nose width — disabled (no ala landmarks in ADF).",
+        description="Nose width fixed default 0.65 (no ala landmarks in ADF).",
     ),
     "Nose_UnderNose": _spec(
         value_range=(-1.0, 1.0), domain="nose",
