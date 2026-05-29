@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, readFile, mkdir, rm, cp } from 'fs/promises';
+import { writeFile, readFile, mkdir, rm } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { execFile } from 'child_process';
@@ -11,7 +11,6 @@ const execFileAsync = promisify(execFile);
 
 const PROJECT_ROOT = process.cwd();
 const FACE_FEATURE_DIR = join(PROJECT_ROOT, 'face-feature');
-const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'generate-3d');
 
 // VARCO takes 2-5 min + render 30s + extraction 30s
 const TIMEOUT_MS = 7 * 60 * 1000; // 7 minutes
@@ -99,16 +98,6 @@ export async function POST(request: NextRequest) {
     }
 
     const result = JSON.parse(await readFile(resultJson, 'utf-8'));
-
-    // Save debug output
-    try {
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      const debugOut = join(DEBUG_DIR, ts);
-      await cp(workDir, debugOut, { recursive: true });
-      console.log(`[Generate3D] Debug saved: ${debugOut}`);
-    } catch (e) {
-      console.warn('[Generate3D] Debug save failed:', e);
-    }
 
     return NextResponse.json(result);
   } catch (err) {
