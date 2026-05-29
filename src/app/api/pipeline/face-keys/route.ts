@@ -10,14 +10,14 @@ import { randomUUID } from 'crypto';
 const execFileAsync = promisify(execFile);
 
 const PROJECT_ROOT = process.cwd();
-const FACE_PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline', 'face');
+const FACE_FEATURE_DIR = join(PROJECT_ROOT, 'face-feature');
 const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'face-keys');
 
 const TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 
 /** Resolve Python interpreter from env var or fallback to system python3 */
 function getPython(): string {
-  return process.env.PIPELINE_PYTHON || 'python3';
+  return process.env.PIPELINE_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 }
 
 async function runPython(
@@ -70,10 +70,10 @@ export async function POST(request: NextRequest) {
 
     // Run face feature extraction pipeline
     await runPython(
-      join(FACE_PIPELINE_DIR, 'run_extract.py'),
+      join(FACE_FEATURE_DIR, 'run_extract.py'),
       extractArgs,
-      FACE_PIPELINE_DIR,
-      'run_extract',
+      FACE_FEATURE_DIR,
+      'face-feature run_extract',
     );
 
     // Read result JSON

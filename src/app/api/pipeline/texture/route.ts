@@ -12,7 +12,8 @@ const execFileAsync = promisify(execFile);
 const PROJECT_ROOT = process.cwd();
 const PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline');
 const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'texture');
-const FACE_PIPELINE_DIR = join(PIPELINE_DIR, 'face');
+const FACE_FEATURE_DIR = join(PROJECT_ROOT, 'face-feature');
+const FACE_FALLBACK_DIR = join(PIPELINE_DIR, 'face');
 const KANOSAWA_DIR = join(PIPELINE_DIR, 'kanosawa');
 const TEXTURES_DIR = join(PIPELINE_DIR, 'assets', 'textures');
 
@@ -20,7 +21,7 @@ const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 /** Resolve Python interpreter from env var or fallback to system python3 */
 function getPython(): string {
-  return process.env.PIPELINE_PYTHON || 'python3';
+  return process.env.PIPELINE_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 }
 
 /** Pipeline output filename → VRM material slot regex mapping */
@@ -95,10 +96,10 @@ export async function POST(request: NextRequest) {
         'adjust_texture',
       ),
       runPython(
-        join(FACE_PIPELINE_DIR, 'run_extract.py'),
+        join(FACE_FEATURE_DIR, 'run_extract.py'),
         ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson],
-        FACE_PIPELINE_DIR,
-        'run_extract (ADF)',
+        FACE_FEATURE_DIR,
+        'face-feature run_extract (ADF)',
       ),
     ]);
 
@@ -137,9 +138,9 @@ export async function POST(request: NextRequest) {
       // Retry face-keys with kanosawa + hairstyle (parallel)
       await Promise.allSettled([
         runPython(
-          join(FACE_PIPELINE_DIR, 'run_extract.py'),
+          join(FACE_FALLBACK_DIR, 'run_extract.py'),
           ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson, '--landmarks', landmarksJson],
-          FACE_PIPELINE_DIR,
+          FACE_FALLBACK_DIR,
           'run_extract (kanosawa fallback)',
         ),
         runPython(

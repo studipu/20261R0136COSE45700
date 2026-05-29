@@ -10,7 +10,7 @@ import { randomUUID } from 'crypto';
 const execFileAsync = promisify(execFile);
 
 const PROJECT_ROOT = process.cwd();
-const FACE_PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline', 'face');
+const FACE_FEATURE_DIR = join(PROJECT_ROOT, 'face-feature');
 const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'generate-3d');
 
 // VARCO takes 2-5 min + render 30s + extraction 30s
@@ -18,7 +18,7 @@ const TIMEOUT_MS = 7 * 60 * 1000; // 7 minutes
 
 /** Resolve Python interpreter from env var or fallback to system python3 */
 function getPython(): string {
-  return process.env.PIPELINE_PYTHON || 'python3';
+  return process.env.PIPELINE_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 }
 
 async function runPython(
@@ -65,8 +65,9 @@ export async function POST(request: NextRequest) {
 
     // Build CLI arguments
     const pipelineArgs = [
+      '--output', workDir,
+      'run',
       '--image', imagePath,
-      '--output-dir', workDir,
       '--provider', provider,
     ];
 
@@ -77,15 +78,15 @@ export async function POST(request: NextRequest) {
       pipelineArgs.push('--skip-3d');
     }
     if (existingGlb) {
-      pipelineArgs.push('--existing-glb', existingGlb);
+      pipelineArgs.push('--glb', existingGlb);
     }
 
     // Run full pipeline
     await runPython(
-      join(FACE_PIPELINE_DIR, 'run_pipeline.py'),
+      join(FACE_FEATURE_DIR, 'main.py'),
       pipelineArgs,
-      FACE_PIPELINE_DIR,
-      'run_pipeline',
+      FACE_FEATURE_DIR,
+      'face-feature run',
     );
 
     // Read result JSON

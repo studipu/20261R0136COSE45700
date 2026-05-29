@@ -37,10 +37,14 @@ export async function loadVRM(url: string): Promise<VRM> {
   const loader = getLoader();
 
   const gltf = await loader.loadAsync(url);
-  const vrm = gltf.userData.vrm as VRM;
+  let vrm = gltf.userData.vrm as VRM | undefined;
 
   if (!vrm) {
-    throw new Error('Failed to load VRM from file');
+    console.warn('[VRM] No VRM metadata found; using plain GLB scene fallback');
+    vrm = {
+      scene: gltf.scene,
+      update: () => {},
+    } as unknown as VRM;
   }
 
   // VRM models face +Z by default, rotate to face camera (-Z)
