@@ -19,7 +19,9 @@ Public API:
 
 from __future__ import annotations
 
-import os
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import tempfile
 import warnings
 from importlib import reload
@@ -30,10 +32,10 @@ from dataclasses import dataclass, asdict, fields
 from pathlib import Path
 from PIL import Image
 
-from .adf_client import query_adf, ADF_KP_GROUPS
-from .avatar_keys import compute_avatar_keys
-from . import avatar_keys as _avatar_keys_module
-from .geometry import _EPS, _map_01, _compute_cheek_from_side, _angle_at
+from adf_client import query_adf, ADF_KP_GROUPS
+from avatar_keys import compute_avatar_keys
+import avatar_keys as _avatar_keys_module
+from geometry import _EPS, _map_01, _compute_cheek_from_side, _angle_at
 
 warnings.filterwarnings("ignore")
 
@@ -137,6 +139,7 @@ def extract_features_full(
     fv      = _compute_features(groups)
     raw_out: dict = {}
     avatar_keys = compute_avatar_keys(kps_raw, _raw_out=raw_out, depth=depth, img_shape=img_bgr.shape[:2])
+
     face_cheek_2d_raw = raw_out.get("Face_Cheek")
 
     if _side_cheek_raw is not None:
@@ -413,13 +416,19 @@ def visualize_measurements(
 def visualize_landmarks(
     image,
     save_path: "str | None" = None,
+    kps_list: "list | None" = None,
 ) -> Image.Image:
-    img_bgr        = _to_bgr(image)
-    img_path, _tmp = _ensure_path(image, img_bgr)
-    groups, face_bbox, _ = _run_adf(img_bgr, img_path)
-    if _tmp:
-        try: os.unlink(_tmp)
-        except OSError: pass
+    img_bgr = _to_bgr(image)
+    face_bbox = None
+    if kps_list is not None:
+        lm_px = [(float(p[0]), float(p[1])) for p in kps_list]
+        groups = {r: [lm_px[i] for i in idx] for r, idx in ADF_KP_GROUPS.items()}
+    else:
+        img_path, _tmp = _ensure_path(image, img_bgr)
+        groups, face_bbox, _ = _run_adf(img_bgr, img_path)
+        if _tmp:
+            try: os.unlink(_tmp)
+            except OSError: pass
     if groups is None:
         return Image.fromarray(cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB))
 

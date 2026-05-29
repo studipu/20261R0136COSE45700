@@ -6,19 +6,21 @@ ADF 28-pt keypoints → eye ROI crop → HoughCircles → contour fallback
 
 Public API:
     detect_pupils(img_bgr, kps) -> dict | None
-    extract_features_with_pupils(image, min_confidence) -> (FaceFeatureVector | None, dict | None)
+    extract_features_with_pupils(image, min_confidence) -> (FaceFeatureVector | None, dict | None, dict | None)
 """
+
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
 
 import cv2
 import numpy as np
 
-from .feature_extractor import (
+from feature_extractor import (
     _to_bgr, _run_adf, _ensure_path,
     _compute_features, FaceFeatureVector,
 )
-from .avatar_keys import compute_avatar_keys
-from .geometry import _compute_cheek_from_side, _map_01
-import os
+from avatar_keys import compute_avatar_keys
+from geometry import _compute_cheek_from_side, _map_01
 
 _EPS = 1e-6
 
@@ -123,7 +125,7 @@ def detect_pupils(img_bgr: np.ndarray, kps: list) -> "dict | None":
 def extract_features_with_pupils(
     image,
     min_confidence: float = 0.4,
-) -> "tuple[FaceFeatureVector | None, dict | None]":
+) -> "tuple[FaceFeatureVector | None, dict | None, dict | None]":
     """
     feature_extractor.extract_features_full의 drop-in 대체.
     ADF 검출 + OpenCV 눈동자 검출을 한 번에 실행.
@@ -161,16 +163,13 @@ def extract_features_with_pupils(
     manual = detect_pupils(img_bgr, kps_raw)
     raw_out: dict = {}
     avatar_keys = compute_avatar_keys(kps_raw, manual=manual, _raw_out=raw_out, depth=depth, img_shape=img_bgr.shape[:2])
-    face_cheek_2d_entry = raw_out.get("Face_Cheek")
+
+    face_cheek_2d_raw = raw_out.get("Face_Cheek")
 
     if _side_cheek_raw is not None:
         avatar_keys["Face_Cheek"] = 0.0
         raw_out["Face_Cheek"] = {"value": _side_cheek_raw, "source": "renderer/depth"}
     else:
-        if isinstance(face_cheek_2d_entry, dict):
-            raw_out["Face_Cheek"] = {**face_cheek_2d_entry, "source": "adf/2d_proxy"}
-        else:
-            raw_out["Face_Cheek"] = {"value": face_cheek_2d_entry, "source": "adf/2d_proxy"}
-    raw_out["_adf_landmarks"] = [[float(p[0]), float(p[1])] for p in kps_raw]
+        raw_out["Face_Cheek"] = {"value": face_cheek_2d_raw, "source": "adf/2d_proxy"}
 
     return fv, avatar_keys, raw_out

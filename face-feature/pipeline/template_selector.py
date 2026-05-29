@@ -11,9 +11,12 @@ mature: 성인 비율, 디테일한 얼굴 (성숙/리얼 스타일)
 
 from __future__ import annotations
 
+import sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import numpy as np
 from dataclasses import dataclass
-from .feature_extractor import FaceFeatureVector
+from feature_extractor import FaceFeatureVector
 
 
 TEMPLATE_NAMES = ("cute", "slim", "mature")

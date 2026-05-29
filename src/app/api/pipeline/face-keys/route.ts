@@ -86,15 +86,12 @@ export async function POST(request: NextRequest) {
 
     const result = JSON.parse(await readFile(resultJson, 'utf-8'));
 
-    // Save debug output
-    try {
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      const debugOut = join(DEBUG_DIR, ts);
-      await cp(workDir, debugOut, { recursive: true });
-      console.log(`[FacePipeline] Debug saved: ${debugOut}`);
-    } catch (e) {
-      console.warn('[FacePipeline] Debug save failed:', e);
-    }
+    // Save debug output (fire-and-forget — don't block response)
+    const debugTs = new Date().toISOString().replace(/[:.]/g, '-');
+    const debugOut = join(DEBUG_DIR, debugTs);
+    cp(workDir, debugOut, { recursive: true })
+      .then(() => console.log(`[FacePipeline] Debug saved: ${debugOut}`))
+      .catch((e) => console.warn('[FacePipeline] Debug save failed:', e));
 
     return NextResponse.json(result);
   } catch (err) {

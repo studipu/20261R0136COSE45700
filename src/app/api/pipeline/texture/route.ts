@@ -13,7 +13,6 @@ const PROJECT_ROOT = process.cwd();
 const PIPELINE_DIR = join(PROJECT_ROOT, 'src', 'pipeline');
 const DEBUG_DIR = join(PROJECT_ROOT, 'debug', 'texture');
 const FACE_FEATURE_DIR = join(PROJECT_ROOT, 'face-feature');
-const FACE_FALLBACK_DIR = join(PIPELINE_DIR, 'face');
 const KANOSAWA_DIR = join(PIPELINE_DIR, 'kanosawa');
 const TEXTURES_DIR = join(PIPELINE_DIR, 'assets', 'textures');
 
@@ -138,9 +137,9 @@ export async function POST(request: NextRequest) {
       // Retry face-keys with kanosawa + hairstyle (parallel)
       await Promise.allSettled([
         runPython(
-          join(FACE_FALLBACK_DIR, 'run_extract.py'),
+          join(FACE_FEATURE_DIR, 'run_extract.py'),
           ['--image', imagePath, '--output', faceKeysJson, '--features', featuresJson, '--landmarks', landmarksJson],
-          FACE_FALLBACK_DIR,
+          FACE_FEATURE_DIR,
           'run_extract (kanosawa fallback)',
         ),
         runPython(
@@ -192,15 +191,12 @@ export async function POST(request: NextRequest) {
       // non-critical
     }
 
-    // Save debug output
-    try {
-      const ts = new Date().toISOString().replace(/[:.]/g, '-');
-      const debugOut = join(DEBUG_DIR, ts);
-      await cp(workDir, debugOut, { recursive: true });
-      console.log(`[TexturePipeline] Debug saved: ${debugOut}`);
-    } catch (e) {
-      console.warn('[TexturePipeline] Debug save failed:', e);
-    }
+    // Save debug output (fire-and-forget — don't block response)
+    const debugTs = new Date().toISOString().replace(/[:.]/g, '-');
+    const debugOut = join(DEBUG_DIR, debugTs);
+    cp(workDir, debugOut, { recursive: true })
+      .then(() => console.log(`[TexturePipeline] Debug saved: ${debugOut}`))
+      .catch((e) => console.warn('[TexturePipeline] Debug save failed:', e));
 
     return NextResponse.json({ textures, features, landmarks, hairMatch, faceKeys });
   } catch (err) {

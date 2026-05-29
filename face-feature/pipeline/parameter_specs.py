@@ -157,7 +157,7 @@ PARAMETER_SPECS: dict[str, ParameterSpec] = {
     "Nose_UnderNose": _spec(
         value_range=(-1.0, 1.0), domain="nose",
         source="FaceFeatureVector", feature="nose_under_nose_ratio", enabled=True,
-        description="Nose-to-upper-lip distance proxy: (mouth_top_y - nose_tip_y) / face_scale.",
+        description="Philtrum length: (mouth_top_y − nose_tip_y) / face_h.",
     ),
     # ── Mouth ─────────────────────────────────────────────────────────────
     "Mouth_Width": _spec(
