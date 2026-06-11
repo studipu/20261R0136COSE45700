@@ -60,6 +60,7 @@ jobs:
 
             rm -rf .next
             npm ci
+            set -a; source /etc/virtual-avatar/env; set +a
             npm run build
 
             sudo systemctl restart virtual-avatar
